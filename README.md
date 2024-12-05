@@ -31,6 +31,11 @@ Docker with Docker Compose installed on the host OS
 docker compose up --build
 ```
 
+Recommended adding this link into file /etc/sysctl.conf
+```
+vm.max_map_count = 262144  
+```
+
 ## General Data Flow
 Upon startup, the **Manager** container will import data from CSV files present in the project's directory. This process will be conducted using Python with Neo4j.  
 The **Manager** will implement and provide a CLI tool for querying the database. If Memgraph is unable to fully process a query, we will use Geopandas to patch any gaps.  
