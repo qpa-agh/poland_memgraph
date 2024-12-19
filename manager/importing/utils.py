@@ -3,25 +3,45 @@ import pandas as pd
 import shutil
 import multiprocessing
 
+
 def prepare_files(name, dataframe_modifier=None, max_rows=1_000_000):
-    filename = next(file_name for file_name in os.listdir('/data') if name in file_name and file_name.lower().endswith('.csv'))
-    source_filepath = os.path.join('/data', filename)
-    output_dir = os.path.join('/data', name)
+    print(name)
+    try:
+        filename = next(
+            file_name
+            for file_name in os.listdir("/data")
+            if name in file_name and file_name.lower().endswith(".csv")
+        )
+    except StopIteration as e:
+        print(f"No such file as {name}", flush=True)
+        raise e
+
+    source_filepath = os.path.join("/data", filename)
+    output_dir = os.path.join("/data", name)
     if os.path.exists(output_dir):
         return output_dir
         shutil.rmtree(output_dir)
         if os.path.exists(output_dir):
             os.rmdir(output_dir)
-    split_large_csv(source_filepath, output_dir, dataframe_modifier=dataframe_modifier, max_rows=max_rows)
+    split_large_csv(
+        source_filepath,
+        output_dir,
+        dataframe_modifier=dataframe_modifier,
+        max_rows=max_rows,
+    )
     return output_dir
+
 
 def execute_with_pool(function, data, max_processes=10):
     with multiprocessing.Pool(min(len(data), max_processes)) as pool:
-        pool.starmap(function, [(q, ) for q in data])
+        pool.starmap(function, [(q,) for q in data])
         pool.close()
         pool.join()
 
-def split_large_csv(file_path: str, output_folder: str, max_rows = 1_000_000, dataframe_modifier=None):
+
+def split_large_csv(
+    file_path: str, output_folder: str, max_rows=1_000_000, dataframe_modifier=None
+):
     """
     Splits a large CSV file into multiple files, each containing a maximum of 1 million rows.
 
@@ -48,6 +68,7 @@ def split_large_csv(file_path: str, output_folder: str, max_rows = 1_000_000, da
 
     return output_files
 
+
 def split_csvs_in_directory(input_dir, output_dir):
     """
     Iterates over all CSV files in the provided directory and splits them into smaller files
@@ -67,14 +88,16 @@ def split_csvs_in_directory(input_dir, output_dir):
 
     for file_name in os.listdir(input_dir):
         file_path = os.path.join(input_dir, file_name)
-        if os.path.isfile(file_path) and file_name.lower().endswith('.csv'):
+        if os.path.isfile(file_path) and file_name.lower().endswith(".csv"):
             base_name = os.path.splitext(os.path.basename(file_path))[0]
-            split_files = split_large_csv(file_path, os.path.join(output_dir, base_name))
+            split_files = split_large_csv(
+                file_path, os.path.join(output_dir, base_name)
+            )
             all_split_files.extend(split_files)
 
     return all_split_files
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     split_files = split_csvs_in_directory("data", "data/out")
     print(split_files)
