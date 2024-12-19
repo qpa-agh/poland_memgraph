@@ -1,4 +1,3 @@
-import sys
 import time
 from importing.importing_data import DATA_LOADERS
 
@@ -34,7 +33,7 @@ def import_data(arguments):
         print(f"{name.capitalize()} data imported in {duration:.2f} seconds.")
     print(f"Total time taken: {sum([duration for _, duration in report]):.2f} seconds.\n")
 
-def main():
+def run_cli():
     print("CLI Tool: Enter a command. Type 'exit' to quit.")
     print(f"Usage: {IMPORT_COMMAND} <data_type1> [data_type2 ...] or '{IMPORT_COMMAND} all'")
     print(f"<data_type> = [all, {', '.join(DATA_LOADERS.keys())}]")
@@ -60,4 +59,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    run_cli()

@@ -40,7 +40,7 @@ vm.max_map_count = 262144
 Upon startup, the **Manager** container will import data from CSV files present in the project's directory. This process will be conducted using Python with Neo4j.  
 The **Manager** will implement and provide a CLI tool for querying the database. If Memgraph is unable to fully process a query, we will use Geopandas to patch any gaps.  
 
-![alt text](image.png)
+![CSV import illustration](imgs/csv_import_illustration.png)
  
 ### Parallelism Detection
 Two roads are considered parallel if and only if there exists one segment from each road that is parallel to one another.  
@@ -155,14 +155,14 @@ for file in target_nodes_directory.glob("*.csv"):
     - precomputed with geopandas, 
     - railway - road relationship
 
-## Import cli
+## Data Import using CLI
 To interact with the manager CLI run  
 ```bash
 docker compose run --rm manager
 ```
 And follow the instructions   
 
-## Import pipeline  
+### Import pipeline  
 1. User enters "import trees" into the CLI  
 2. Manager splits every file over 1 milion rows into multiple 1 milion rows files  
 3. For each csv chunk there is a process created that sends query to the memgraph  
@@ -204,11 +204,13 @@ Cartesian calculations take 6% less time.
 
 ## Built-in visualisation
 
-![alt text](image-1.png)
+![alt text](imgs/example_points_on_map.png)
+
 For memgraph-lab to visualise points on the map, nodes have to have properties "lat" and "lng".  
 
 Powiats
-![alt text](image-2.png)
+
+![alt text](imgs/powiats.png)
 
 ## Import report (only memgraph)
 This does not include preprocessing and fragmenting dataframes
@@ -227,7 +229,7 @@ Total time taken: 55.00 seconds.
 ```
 
 
-## Import report (whole pipeline)
+## Import report (entire pipeline)
 ```
 Import Report:
 Buildings data imported in 589.91 seconds.
@@ -244,10 +246,11 @@ Total time taken: 1043.01 seconds.
 
 ## Results
 36 milion nodes
+
 12.5 GB
 
 All of the cities  
-![alt text](image-3.png)
+![alt text](imgs/all_cities.png)
 
 ## Resources
 1. https://memgraph.com/docs/data-migration/best-practices  
