@@ -5,10 +5,12 @@ services:
     ports:
       - "7687:7687"
       - "7444:7444"
-    command: ["--log-level=TRACE"]
+    command: ["--log-level=TRACE", "--memory-limit=20000"]
     environment:
       - MEMGRAPH_USER=testuser123
       - MEMGRAPH_PASSWORD=t123
+    volumes:
+      - ./data:/data
  
   lab: # frontend
     image: memgraph/lab:latest
@@ -23,7 +25,13 @@ services:
 
   manager: # backend and CLI
     build: ./manager
+    container_name: manager
     ports:
       - "6000:6000"
+    volumes:
+      - ./data:/data
     depends_on:
       - memgraph
+    stdin_open: true
+    tty: true
+  

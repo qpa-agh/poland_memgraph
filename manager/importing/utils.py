@@ -1,8 +1,27 @@
 import os
 import pandas as pd
 import shutil
+import multiprocessing
 
-def split_large_csv(file_path: str, output_folder: str, max_rows = 1_000_000):
+def prepare_files(name, dataframe_modifier=None, max_rows=1_000_000):
+    filename = next(file_name for file_name in os.listdir('/data') if name in file_name and file_name.lower().endswith('.csv'))
+    source_filepath = os.path.join('/data', filename)
+    output_dir = os.path.join('/data', name)
+    if os.path.exists(output_dir):
+        return output_dir
+        shutil.rmtree(output_dir)
+        if os.path.exists(output_dir):
+            os.rmdir(output_dir)
+    split_large_csv(source_filepath, output_dir, dataframe_modifier=dataframe_modifier, max_rows=max_rows)
+    return output_dir
+
+def execute_with_pool(function, data, max_processes=10):
+    with multiprocessing.Pool(min(len(data), max_processes)) as pool:
+        pool.starmap(function, [(q, ) for q in data])
+        pool.close()
+        pool.join()
+
+def split_large_csv(file_path: str, output_folder: str, max_rows = 1_000_000, dataframe_modifier=None):
     """
     Splits a large CSV file into multiple files, each containing a maximum of 1 million rows.
 
@@ -14,23 +33,16 @@ def split_large_csv(file_path: str, output_folder: str, max_rows = 1_000_000):
     Returns:
         List[str]: List of paths to the newly created CSV files.
     """
-    # Ensure the output folder exists
     os.makedirs(output_folder, exist_ok=True)
 
-    total_rows = sum(1 for _ in open(file_path)) - 1  # Subtract 1 for the header
-
-    # No need to split, copy it to the output folder
-    if total_rows <= max_rows:
-        output_file = os.path.join(output_folder, os.path.basename(file_path))
-        shutil.copy(file_path, output_file)
-        return [output_file]
-
-    base_name = os.path.splitext(os.path.basename(file_path))[0]
     output_files = []
 
     chunks = pd.read_csv(file_path, chunksize=max_rows)
     for idx, chunk in enumerate(chunks):
-        split_file_path = os.path.join(output_folder, f"{base_name}_chunk_{idx + 1}.csv")
+        os.makedirs(os.path.join(output_folder), exist_ok=True)
+        split_file_path = os.path.join(output_folder, f"chunk_{idx + 1}.csv")
+        if dataframe_modifier is not None:
+            chunk = dataframe_modifier(chunk)
         chunk.to_csv(split_file_path, index=False)
         output_files.append(split_file_path)
 
@@ -55,9 +67,9 @@ def split_csvs_in_directory(input_dir, output_dir):
 
     for file_name in os.listdir(input_dir):
         file_path = os.path.join(input_dir, file_name)
-        # Process only CSV files
         if os.path.isfile(file_path) and file_name.lower().endswith('.csv'):
-            split_files = split_large_csv(file_path, output_dir)
+            base_name = os.path.splitext(os.path.basename(file_path))[0]
+            split_files = split_large_csv(file_path, os.path.join(output_dir, base_name))
             all_split_files.extend(split_files)
 
     return all_split_files

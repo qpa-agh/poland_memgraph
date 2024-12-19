@@ -155,6 +155,99 @@ for file in target_nodes_directory.glob("*.csv"):
     - precomputed with geopandas, 
     - railway - road relationship
 
+## Import cli
+To interact with the manager CLI run  
+```bash
+docker compose run --rm manager
+```
+And follow the instructions   
+
+## Import pipeline  
+1. User enters "import trees" into the CLI  
+2. Manager splits every file over 1 milion rows into multiple 1 milion rows files  
+3. For each csv chunk there is a process created that sends query to the memgraph  
+
+F. e. trees take 10.5 seconds to preprocess and split the csv file, memgraph takes 6 seconds to create all of the nodes  
+
+## Which distance calculation is faster
+Import query  
+```cypher
+LOAD CSV FROM '/data/trees/chunk_1.csv' WITH HEADER AS row 
+CREATE (n:Node {
+      id: row.id,
+      geometry_earth:point({longitude: ToFloat(row.long), latitude: ToFloat(row.lat)}),
+      geometry_poland:point({x: ToFloat(row.x), y: ToFloat(row.y)}) 
+})
+```
+
+```
+MATCH (n1:Node), (n2:Node)
+WHERE n1 != n2
+RETURN  n1.id, n2.id, point.distance(n1.geometry_earth, n2.geometry_earth) AS distance
+LIMIT 1000000;
+```
+This query took 4.85s frontend roundtrip, database execution 1.34s  
+This query took 4.93s frontend roundtrip, database execution 1.21s  
+This query took 4.96s frontend roundtrip, database execution 1.22s  
+ 
+```
+MATCH (n1:Node), (n2:Node)
+WHERE n1 != n2
+RETURN  n1.id, n2.id, point.distance(n1.geometry_poland, n2.geometry_poland) AS distance
+LIMIT 1000000;
+```
+This query took 4.97s frontend roundtrip, database execution 1.16s  
+This query took 4.98s frontend roundtrip, database execution 1.16s  
+This query took 4.92s frontend roundtrip, database execution 1.18s  
+
+Cartesian calculations take 6% less time.   
+
+## Built-in visualisation
+
+![alt text](image-1.png)
+For memgraph-lab to visualise points on the map, nodes have to have properties "lat" and "lng".  
+
+Powiats
+![alt text](image-2.png)
+
+## Import report (only memgraph)
+This does not include preprocessing and fragmenting dataframes
+```
+Import Report:
+Buildings data imported in 26.43 seconds.
+Cities data imported in 3.68 seconds.
+Communes data imported in 1.70 seconds.
+Countries data imported in 0.25 seconds.
+Powiats data imported in 0.85 seconds.
+Railways data imported in 1.38 seconds.
+Roads data imported in 16.80 seconds.
+Trees data imported in 3.55 seconds.
+Voivodships data imported in 0.36 seconds.
+Total time taken: 55.00 seconds.
+```
+
+
+## Import report (whole pipeline)
+```
+Import Report:
+Buildings data imported in 589.91 seconds.
+Cities data imported in 17.28 seconds.
+Communes data imported in 7.64 seconds.
+Countries data imported in 0.57 seconds.
+Powiats data imported in 3.54 seconds.
+Railways data imported in 6.54 seconds.
+Roads data imported in 402.41 seconds.
+Trees data imported in 13.97 seconds.
+Voivodships data imported in 1.15 seconds.
+Total time taken: 1043.01 seconds.
+```
+
+## Results
+36 milion nodes
+12.5 GB
+
+All of the cities  
+![alt text](image-3.png)
 
 ## Resources
 1. https://memgraph.com/docs/data-migration/best-practices  

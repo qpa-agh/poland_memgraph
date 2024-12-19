@@ -1,1 +1,5 @@
 neo4j
+pandas
+numpy
+shapely
+geopandas
