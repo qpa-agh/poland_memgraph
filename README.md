@@ -266,14 +266,44 @@ https://memgraph.com/blog/gqlalchemy-on-disk-storage
 Additional database for storing
 
 ## Road Connections
-![alt text](imgs/example_road.png)
+![alt text](imgs/example_road.png)  
 
 ## Problems with point index
-![alt text](point_index.png)
-## Time it took for each milestone
-Milestone 1: Choice of technologies, model & definitions - 6 hours
-Milestone 2: Data model & environment design - 6 hours
-Milestone 3: Data import - 30 hours
+![alt text](imgs/point_index.png)  
+
+## Creating buildings neighbourhood problem
+
+![alt text](imgs/building_connection.png)  
+
+
+Checking around 10000 buildings took 3 minutes and resulted in over 3 milion relationships. Checking all 17 milion nodes would take   5100 minutes (85hours) and result in 5.1 bilion relationships assuming similiar distribution.   
+export_util was checked for speed, did not work.   
+Multiple versions of parallelizations were checked, did not work.  
+ 
+Creating thses 3 milion relationships took 24.26 seconds.    
+It also took around 1GB of memory.   
+Assuming 1700 time more relationship It would take 1.7TB of memory to store all of those relationships.   
+Still assuming similar rate of relationships acrosss the rest of the buildings.   
+
+500 meter radius means that assuming 1d building, we need to check 785000 meters squared which equals to 78 ha  
+Dividing area of poland (311 888 km2 -> 31 188 800 ha) by 17 milion buildings we get one building per 1.8ha  
+Which means in the best case scenario (buildings located uniformly across Poland) each building will have 43 buildings.    
+If we could use non-directional relations that would be "only" 731 milion relationships.  
+This gets much worse, when we calculate distances from edge of a building to an edge of another building.  
+Please check our math.   
+
+PS: Easier example with 1 milion trees, point spatial representation and only 50 meters created 32milion edges and took 4GB.   
+Just increasing the number of trees to 17 milion and assuming optimal case of each next copy being in another dimension (otherwise it would result in even more relationships) it will result in 544 milion edges and 68 BG of memory taken.  
+
+## Relationship creation time
+
+Relationship 6 (truncated to around 3 million) around 3 minutes 20 seconds    
+Relationship 7 created in 19.62 seconds. (32 milion edges, 4GB)   
+
+## Time it took for each milestone  
+Milestone 1: Choice of technologies, model & definitions - 6 hours  
+Milestone 2: Data model & environment design - 6 hours  
+Milestone 3: Data import - 30 hours  
  
 
 

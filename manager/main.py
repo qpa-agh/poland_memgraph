@@ -86,7 +86,7 @@ def create_relationships(arguments):
                 )
                 break
 
-    print("\Relationship creation Report:")
+    print("\nRelationship creation Report:")
     for name, duration in report:
         print(f"relationship {name.capitalize()} created in {duration:.2f} seconds.")
     print(

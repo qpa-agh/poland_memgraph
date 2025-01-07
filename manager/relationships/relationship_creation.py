@@ -3,9 +3,13 @@ import numpy as np
 import pandas as pd
 from shapely import wkt
 import gc
+from shapely import wkt
+from pathlib import Path
+import os
+import shutil
 
 from utils.parallelization import execute_with_pool
-from database.communication import execute_query
+from database.communication import execute_query, execute_query_to_csv, execute_query_to_csv_parallelized
 
 
 
@@ -40,11 +44,64 @@ def create_relationship_5():
     """
     pass
 
+def check_proximity(data, distance=500):
+    id1, wkt1, id2, wkt2 = data
+
+    geom1 = wkt.loads(wkt1)
+    geom2 = wkt.loads(wkt2)
+
+    actual_distance = geom1.distance(geom2)
+    if actual_distance <= distance:
+        return [id1, id2, actual_distance]
+
+    return None
+
+# id1    id2 actual_distance
+def create_buildings_distance_connetions_query(path):
+    return f"""
+        LOAD CSV FROM '{path}' WITH HEADER AS row
+        MATCH (startNode:Building {{id: toInteger(row.id1)}}), (endNode:Building {{id: toInteger(row.id2)}})
+        CREATE (startNode)-[:CLOSE_TO {{distance: toFloat(row.actual_distance)}}]->(endNode)
+    """
+
 def create_relationship_6():
     """
         All neighbouring buildings not further than 500 meters apart; attributes: distance (meters)
     """
-    pass
+    query = """
+        MATCH (t:Building)
+        WITH MAX(t.radius) as max_r
+        MATCH (t1:Building)
+        WITH t1, t1.center as p, (500 + max_r + t1.radius) as max_distance
+        MATCH (t2:Building)
+        WHERE id(t1) <> id(t2) AND point.distance(t2.center, p) <= max_distance
+        RETURN t1.id, t1.wkt, t2.id, t2.wkt
+        LIMIT 10000000
+        """
+    headers = ["id1", "id2", "actual_distance"]
+
+    output_directory = "/data/buildings_distance"
+    # if clear_precomputed:
+    #     shutil.rmtree(output_directory)
+    #     if os.path.exists(output_directory):
+    #         os.rmdir(output_directory)
+    
+    if not os.path.exists(output_directory):
+        execute_query('CREATE INDEX ON :Building')
+        execute_query('CREATE POINT INDEX ON :Building(center)')
+
+        execute_query_to_csv_parallelized(query, headers, output_directory, modifier_function=check_proximity, chunk_size=100_000)
+        execute_query('DROP INDEX ON :Building')
+        execute_query('DROP POINT INDEX ON :Building(center)')
+        
+    execute_query('CREATE INDEX ON :Building(id)')
+    buildings_distance_connetions_queries = [
+        create_buildings_distance_connetions_query(os.path.join(output_directory, file.name))
+        for file in Path(output_directory).glob("*.csv")
+    ]
+    execute_with_pool(execute_query, buildings_distance_connetions_queries, max_processes=10)
+    execute_query('DROP INDEX ON :Building(id)')
+    execute_query('FREE MEMORY')
 
 def create_relationship_7():
     """

@@ -1,11 +1,11 @@
 services:
   memgraph: # database
-    image: memgraph/memgraph-mage:latest
+    image: memgraph/memgraph-mage:1.22.1-memgraph-2.22.1
     container_name: memgraph-mage
     ports:
       - "7687:7687"
       - "7444:7444"
-    command: ["--log-level=TRACE", "--memory-limit=40000", "--storage-mode=IN_MEMORY_ANALYTICAL"]
+    command: ["--log-level=TRACE", "--memory-limit=50000", "--storage-mode=IN_MEMORY_ANALYTICAL", "--query-execution-timeout-sec=6000"]
     environment:
       - MEMGRAPH_USER=testuser123
       - MEMGRAPH_PASSWORD=t123

@@ -6,8 +6,8 @@ from shapely import wkt
 def preprocess_buildings_df(df):
     df['geometry'] = df['wkt'].apply(wkt.loads)
     gdf = gpd.GeoDataFrame(df, crs="EPSG:4326", geometry='geometry')
-    gdf['lat'] = gdf.centroid.x
-    gdf['long'] = gdf.centroid.y
+    gdf['lat'] = gdf.centroid.y
+    gdf['long'] = gdf.centroid.x
 
     gdf.to_crs(epsg=2180, inplace=True)
     gdf['x'] = gdf.centroid.x

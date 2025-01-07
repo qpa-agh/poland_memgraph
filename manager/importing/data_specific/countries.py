@@ -10,12 +10,14 @@ def preprocess_countries_df(df):
     gdf['long'] = gdf.centroid.x
 
     gdf.to_crs(epsg=2180, inplace=True)
+    gdf['x'] = gdf.centroid.x
+    gdf['y'] = gdf.centroid.y
     gdf = pd.concat([gdf, gdf.bounds], axis=1)
     gdf['wkt'] = gdf['geometry'].apply(wkt.dumps)
     gdf = gdf.drop(['geometry'], axis=1)
     return gdf
 
-# id	name	wkt	lat	long	minx	miny	maxx	maxy
+# id	name	wkt	lat	long	x   y   minx	miny	maxx	maxy
 def create_countries_input_query(path):
     return f"""
         LOAD CSV FROM '{path}' WITH HEADER AS row 
@@ -25,6 +27,7 @@ def create_countries_input_query(path):
             lat: toFloat(row.lat),
             lng: toFloat(row.long),
             wkt: row.wkt, 
+            center: point({{x: toFloat(row.x), y: toFloat(row.y)}}) ,
             lower_left_corner: point({{x: toFloat(row.minx), y: toFloat(row.miny)}}),
             upper_right_corner: point({{x: toFloat(row.maxx), y: toFloat(row.maxy)}})
         }})"""
