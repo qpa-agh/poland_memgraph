@@ -5,44 +5,67 @@ import geopandas as gpd
 import numpy as np
 import pandas as pd
 from shapely import wkt
+import gc
 
-from importing.utils import prepare_files, execute_with_pool
+from utils.file_management import prepare_files, find_file, prepare_paths
+from utils.parallelization import execute_with_pool
 from database.communication import execute_query
 
 from importing.data_specific.buildings import (
     preprocess_buildings_df,
     create_buildings_input_query,
+    create_building_label_index_query,
+    create_building_id_index_query,
+    create_building_center_point_index_query
 )
 from importing.data_specific.cities import (
     preprocess_cities_df,
     create_cities_input_query,
+    create_city_label_index_query
 )
 from importing.data_specific.communes import (
     preprocess_communes_df,
     create_communes_input_query,
+    create_commune_label_index_query
 )
 from importing.data_specific.countries import (
     preprocess_countries_df,
     create_countries_input_query,
+    create_country_label_index_query
 )
 from importing.data_specific.powiats import (
     preprocess_powiats_df,
     create_powiats_input_query,
+    create_powiat_label_index_query
 )
-from importing.data_specific.trees import preprocess_trees_df, create_trees_input_query
+from importing.data_specific.trees import (
+    preprocess_trees_df, 
+    create_trees_input_query,
+    create_tree_label_index_query,
+    create_tree_point_index_query
+)
 from importing.data_specific.voivodships import (
     preprocess_voivodships_df,
     create_voivodships_input_query,
+    create_voivodship_label_index_query
 )
 from importing.data_specific.roads import (
     preprocess_roads_df,
     create_roads_input_query,
     preprocess_road_node_df,
     create_road_node_input_query,
+    preprocess_road_node_connections,
+    create_road_label_index_query,
+    create_road_id_index_query,
+    create_road_node_id_index_query,
+    create_road_node_point_index_query,
+    create_road_node_connection_input_query,
+    create_road_node_road_connection_query
 )
 from importing.data_specific.railways import (
     preprocess_railways_df,
     create_railways_input_query,
+    create_railway_label_index_query
 )
 
 
@@ -52,8 +75,11 @@ def load_buildings(name="buildings"):
         create_buildings_input_query(os.path.join(target_dir, file.name))
         for file in Path(target_dir).glob("*.csv")
     ]
-    execute_with_pool(execute_query, queries)
-
+    execute_with_pool(execute_query, queries, max_processes=5)
+    # execute_query(create_building_label_index_query())
+    # execute_query(create_building_id_index_query())
+    # execute_query(create_building_center_point_index_query())
+    execute_query('FREE MEMORY')
 
 def load_cities(name="cities"):
     target_dir = prepare_files(name, dataframe_modifier=preprocess_cities_df)
@@ -62,6 +88,8 @@ def load_cities(name="cities"):
         for file in Path(target_dir).glob("*.csv")
     ]
     execute_with_pool(execute_query, queries)
+    # execute_query(create_city_label_index_query())
+    execute_query('FREE MEMORY')
 
 
 def load_communes(name="communes"):
@@ -71,6 +99,8 @@ def load_communes(name="communes"):
         for file in Path(target_dir).glob("*.csv")
     ]
     execute_with_pool(execute_query, queries)
+    # execute_query(create_commune_label_index_query())
+    execute_query('FREE MEMORY')
 
 
 def load_countries(name="countries"):
@@ -80,6 +110,8 @@ def load_countries(name="countries"):
         for file in Path(target_dir).glob("*.csv")
     ]
     execute_with_pool(execute_query, queries)
+    # execute_query(create_country_label_index_query())
+    execute_query('FREE MEMORY')
 
 
 def load_powiats(name="powiats"):
@@ -89,6 +121,8 @@ def load_powiats(name="powiats"):
         for file in Path(target_dir).glob("*.csv")
     ]
     execute_with_pool(execute_query, queries)
+    # execute_query(create_powiat_label_index_query())
+    execute_query('FREE MEMORY')
 
 
 def load_railways(name="railways"):
@@ -98,52 +132,82 @@ def load_railways(name="railways"):
         for file in Path(target_dir).glob("*.csv")
     ]
     execute_with_pool(execute_query, queries)
+    # execute_query(create_railway_label_index_query())
+    execute_query('FREE MEMORY')
 
-
+CLEAR_ROADS = False
 def load_roads(name="roads"):
-    try:
-        filename = next(
-            file_name
-            for file_name in os.listdir("/data")
-            if name in file_name and file_name.lower().endswith(".csv")
-        )
-    except StopIteration as e:
-        print(f"No such file as {name}", flush=True)
-        raise e
-    source_filepath = os.path.join("/data", filename)
-    output_dir = os.path.join("/data", name)
-    if os.path.exists(output_dir):
-        shutil.rmtree(output_dir)
-    if os.path.exists(output_dir):
-        os.rmdir(output_dir)
+    filename = find_file(name)
+    source_filepath, output_dir = prepare_paths(name, filename, CLEAR_ROADS)
+    if not os.path.exists(output_dir) or CLEAR_ROADS:
+        os.makedirs(output_dir, exist_ok=True)
 
-    os.makedirs(output_dir, exist_ok=True)
+        roads_df = pd.read_csv(source_filepath, low_memory=False)
+        roads_df, df = preprocess_roads_df(roads_df)
+        print("roads preprocessed")
+        
+        roads_df_file_path = os.path.join(output_dir, f"roads_df.csv")
+        roads_df.to_csv(roads_df_file_path, index=False)
+        del roads_df
+        gc.collect()
 
-    roads_df = pd.read_csv(source_filepath, low_memory=False)
-    roads_df, df = preprocess_roads_df(roads_df)
-    print("roads preprocessed")
-    roads_df_file_path = os.path.join(output_dir, f"roads_df.csv")
-    roads_df.to_csv(roads_df_file_path, index=False)
+
+        # ================= ROAD NODES =====================
+        road_node_df = preprocess_road_node_df(df)
+        road_node_df.to_csv(os.path.join("/data", "road_nodes.csv"), index=False)
+        del road_node_df
+        gc.collect()
+
+        # ================= ROAD NODES CONNECTIONS =====================
+        road_node_connetions_df = preprocess_road_node_connections(df)
+        road_node_connetions_df.to_csv(os.path.join("/data", "road_node_connetions.csv"), index=False)
+        del road_node_connetions_df
+        del df
+        gc.collect()
+        
+    print("road nodes preprocessed")
+
+    # ROAD creation
     road_queries = [
         create_roads_input_query(os.path.join(output_dir, file.name))
         for file in Path(output_dir).glob("*.csv")
     ]
-    del roads_df
+    gc.collect()
+    execute_with_pool(execute_query, road_queries)
+    # execute_query(create_road_label_index_query())
+    execute_query(create_road_id_index_query())
+    execute_query('FREE MEMORY')
 
-    # ================= ROAD NODES =====================
-    road_node_df = preprocess_road_node_df(df)
-    road_node_df.to_csv(os.path.join("/data", "road_nodes.csv"), index=False)
-    del road_node_df
-    del df
-    print("road nodes preprocessed")
-
+    # ROAD NODE creation
     target_dir = prepare_files("road_nodes")
     road_nodes_queries = [
         create_road_node_input_query(os.path.join(target_dir, file.name))
         for file in Path(target_dir).glob("*.csv")
     ]
 
-    execute_with_pool(execute_query, road_queries + road_nodes_queries)
+    execute_with_pool(execute_query, road_nodes_queries, max_processes=5)
+    execute_query(create_road_node_id_index_query())
+    # execute_query(create_road_node_point_index_query())
+    execute_query('FREE MEMORY')
+    
+    # execute_query('EDGE IMPORT MODE ACTIVE')
+    # ROAD NODE ROAD relationship creation
+    road_nodes_queries = [
+        create_road_node_road_connection_query(os.path.join(target_dir, file.name))
+        for file in Path(target_dir).glob("*.csv")
+    ]
+    execute_with_pool(execute_query, road_nodes_queries, max_processes=5)
+    
+    # ROAD NODE CONNECTION creation
+    target_dir = prepare_files("road_node_connetions")
+    road_nodes_connetions_queries = [
+        create_road_node_connection_input_query(os.path.join(target_dir, file.name))
+        for file in Path(target_dir).glob("*.csv")
+    ]
+    execute_with_pool(execute_query, road_nodes_connetions_queries, max_processes=5)
+    # execute_query('EDGE IMPORT MODE INACTIVE')
+    execute_query('FREE MEMORY')
+    
 
 
 def load_trees(name="trees"):
@@ -153,7 +217,9 @@ def load_trees(name="trees"):
         for file in Path(target_dir).glob("*.csv")
     ]
     execute_with_pool(execute_query, queries)
-
+    # execute_query(create_tree_label_index_query())
+    # execute_query(create_tree_point_index_query())
+    execute_query('FREE MEMORY')
 
 def load_voivodships(name="voivodships"):
     target_dir = prepare_files(name, dataframe_modifier=preprocess_voivodships_df)
@@ -162,6 +228,8 @@ def load_voivodships(name="voivodships"):
         for file in Path(target_dir).glob("*.csv")
     ]
     execute_with_pool(execute_query, queries)
+    # execute_query(create_voivodship_label_index_query())
+    execute_query('FREE MEMORY')
 
 
 DATA_LOADERS = {

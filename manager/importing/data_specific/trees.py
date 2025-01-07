@@ -22,8 +22,14 @@ def create_trees_input_query(path):
     return f"""
         LOAD CSV FROM '{path}' WITH HEADER AS row 
         CREATE (n:Node:Tree {{
-            id: row.id,
-            lat: ToFloat(row.lat),
-            lng: ToFloat(row.long),
-            geometry:point({{x: ToFloat(row.x), y: ToFloat(row.y)}}) 
+            id: toInteger(row.id),
+            lat: toFloat(row.lat),
+            lng: toFloat(row.long),
+            geometry: point({{x: toFloat(row.x), y: toFloat(row.y)}}) 
         }})"""
+
+def create_tree_label_index_query():
+    return "CREATE INDEX ON :Tree"
+
+def create_tree_point_index_query():
+    return "CREATE POINT INDEX ON :Tree(geometry)"

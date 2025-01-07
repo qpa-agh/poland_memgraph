@@ -1,8 +1,19 @@
 import time
 from importing.importing_data import DATA_LOADERS
+from relationships.relationship_creation import RELATIONSHIP_CREATORS
+import signal
+import sys
+
+def signal_handler(sig, frame):
+    print('You pressed Ctrl+C!')
+    sys.exit(0)
+
+signal.signal(signal.SIGINT, signal_handler)
+signal.signal(signal.SIGTERM, signal_handler)
 
 time.sleep(1)
 IMPORT_COMMAND = "import"
+CREATE_RELATIONSHIP_COMMAND = "cr"
 EXIT_COMMAND = "exit"
 
 
@@ -57,6 +68,30 @@ def import_data(arguments):
         f"Total time taken: {sum([duration for _, duration in report]):.2f} seconds.\n"
     )
 
+def create_relationships(arguments):
+    report = []
+    if "all" in arguments:
+        print("Importing all data...\n")
+        for name, loader in RELATIONSHIP_CREATORS.items():
+            duration = measure_time(loader)
+            report.append((name, duration))
+    else:
+        for argument in arguments:
+            if argument in RELATIONSHIP_CREATORS:
+                duration = measure_time(RELATIONSHIP_CREATORS[argument])
+                report.append((argument, duration))
+            else:
+                print(
+                    f"Unknown data type: '{argument}'. Available options: {', '.join(RELATIONSHIP_CREATORS.keys())}, all."
+                )
+                break
+
+    print("\Relationship creation Report:")
+    for name, duration in report:
+        print(f"relationship {name.capitalize()} created in {duration:.2f} seconds.")
+    print(
+        f"Total time taken: {sum([duration for _, duration in report]):.2f} seconds.\n"
+    )
 
 def run_cli():
     print('=============================================================================')
@@ -69,6 +104,8 @@ def run_cli():
     )
     print(f"<data_type> = [{', '.join(DATA_LOADERS.keys())}]")
     print(f"All files should be in csv format and be located in \data directory")
+    print(f"To create relationships use '{CREATE_RELATIONSHIP_COMMAND}'")
+    print(f"Usage: {CREATE_RELATIONSHIP_COMMAND} <relationship_no1> [relationship_no2 ...] or '{CREATE_RELATIONSHIP_COMMAND} all'")
     while True:
         try:
             command = input("> ").strip()
@@ -85,9 +122,22 @@ def run_cli():
                     print(
                         f"Usage: {IMPORT_COMMAND} <data_type1> [data_type2 ...] or '{IMPORT_COMMAND} all'"
                     )
+            elif command.startswith(CREATE_RELATIONSHIP_COMMAND):
+                parts = command.split()
+                if len(parts) > 1:
+                    arguments = parts[1:]
+                    create_relationships(arguments)
+                else:
+                    print(
+                        f"Usage: {CREATE_RELATIONSHIP_COMMAND} <relationship_no1> [relationship_no2 ...] or '{CREATE_RELATIONSHIP_COMMAND} all'"
+                    )
             else:
                 print(
-                    f"Unknown command. Available commands: {IMPORT_COMMAND} <data_type1> [data_type2 ...], exit."
+                    f"""Unknown command. 
+                    Available commands: 
+                        {IMPORT_COMMAND} <data_type1> [data_type2 ...] or {IMPORT_COMMAND} all
+                        {CREATE_RELATIONSHIP_COMMAND} <relationship_no1> [relationship_no2 ...] or {CREATE_RELATIONSHIP_COMMAND} all
+                        exit"""
                 )
         except KeyboardInterrupt:
             print("\nExiting the CLI tool.")

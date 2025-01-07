@@ -175,8 +175,8 @@ Import query
 LOAD CSV FROM '/data/trees/chunk_1.csv' WITH HEADER AS row 
 CREATE (n:Node {
       id: row.id,
-      geometry_earth:point({longitude: ToFloat(row.long), latitude: ToFloat(row.lat)}),
-      geometry_poland:point({x: ToFloat(row.x), y: ToFloat(row.y)}) 
+      geometry_earth:point({longitude: toFloat(row.long), latitude: toFloat(row.lat)}),
+      geometry_poland:point({x: toFloat(row.x), y: toFloat(row.y)}) 
 })
 ```
 
@@ -251,6 +251,31 @@ Total time taken: 1043.01 seconds.
 
 All of the cities  
 ![alt text](imgs/all_cities.png)
+
+## Memory problems
+Many times it crashed due to memory problems.  
+Solution was to increase ram and swap for WSL2.    
+
+### On disk transactional did not work
+We could try again in the future. But we focused on modelling relationships.  
+
+In future problems may come up again or computations may slow down significantly.
+
+## Possible solution (?)
+https://memgraph.com/blog/gqlalchemy-on-disk-storage
+Additional database for storing
+
+## Road Connections
+![alt text](imgs/example_road.png)
+
+## Problems with point index
+![alt text](point_index.png)
+## Time it took for each milestone
+Milestone 1: Choice of technologies, model & definitions - 6 hours
+Milestone 2: Data model & environment design - 6 hours
+Milestone 3: Data import - 30 hours
+ 
+
 
 ## Resources
 1. https://memgraph.com/docs/data-migration/best-practices  

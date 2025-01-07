@@ -20,11 +20,14 @@ def create_countries_input_query(path):
     return f"""
         LOAD CSV FROM '{path}' WITH HEADER AS row 
         CREATE (n:Node:Country {{
-            id: row.id,
+            id: toInteger(row.id),
             name: row.name,
-            lat: ToFloat(row.lat),
-            lng: ToFloat(row.long),
-            geometry: row.wkt, 
-            lower_left_corner: point({{x: ToFloat(row.minx), y: ToFloat(row.miny)}}),
-            upper_right_corner: point({{x: ToFloat(row.maxx), y: ToFloat(row.maxy)}})
+            lat: toFloat(row.lat),
+            lng: toFloat(row.long),
+            wkt: row.wkt, 
+            lower_left_corner: point({{x: toFloat(row.minx), y: toFloat(row.miny)}}),
+            upper_right_corner: point({{x: toFloat(row.maxx), y: toFloat(row.maxy)}})
         }})"""
+
+def create_country_label_index_query():
+    return "CREATE INDEX ON :Country"

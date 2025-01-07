@@ -1,11 +1,9 @@
 import os
 import pandas as pd
 import shutil
-import multiprocessing
+import gc
 
-
-def prepare_files(name, dataframe_modifier=None, max_rows=1_000_000):
-    print(name)
+def find_file(name):
     try:
         filename = next(
             file_name
@@ -15,14 +13,26 @@ def prepare_files(name, dataframe_modifier=None, max_rows=1_000_000):
     except StopIteration as e:
         print(f"No such file as {name}", flush=True)
         raise e
+    return filename
 
+def prepare_paths(name, filename, clear_output):
     source_filepath = os.path.join("/data", filename)
     output_dir = os.path.join("/data", name)
-    if os.path.exists(output_dir):
-        return output_dir
+    if os.path.exists(output_dir) and clear_output:
         shutil.rmtree(output_dir)
         if os.path.exists(output_dir):
             os.rmdir(output_dir)
+    return source_filepath, output_dir
+
+def prepare_files(name, dataframe_modifier=None, max_rows=1_000_000, clear_output=False):
+    print(name)
+    filename = find_file(name)
+    source_filepath, output_dir = prepare_paths(name, filename, clear_output)
+    if os.path.exists(output_dir) and not clear_output:
+        return output_dir
+    if os.path.exists(output_dir) and clear_output:
+        raise BaseException("Did not clear output properly")
+        
     split_large_csv(
         source_filepath,
         output_dir,
@@ -30,13 +40,6 @@ def prepare_files(name, dataframe_modifier=None, max_rows=1_000_000):
         max_rows=max_rows,
     )
     return output_dir
-
-
-def execute_with_pool(function, data, max_processes=10):
-    with multiprocessing.Pool(min(len(data), max_processes)) as pool:
-        pool.starmap(function, [(q,) for q in data])
-        pool.close()
-        pool.join()
 
 
 def split_large_csv(
@@ -65,6 +68,8 @@ def split_large_csv(
             chunk = dataframe_modifier(chunk)
         chunk.to_csv(split_file_path, index=False)
         output_files.append(split_file_path)
+        del chunk
+        gc.collect()
 
     return output_files
 

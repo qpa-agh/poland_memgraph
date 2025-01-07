@@ -13,9 +13,11 @@ def execute_query(query):
         with GraphDatabase.driver(URI, auth=AUTH) as client:
             with client.session() as session:
                 print('Running query:', query)
-                session.run('STORAGE MODE IN_MEMORY_ANALYTICAL;')
+                # session.run('STORAGE MODE IN_MEMORY_ANALYTICAL;')
                 result = session.run(query)
                 print(result.single())
+                session.run('FREE MEMORY')
+                
     except BaseException as e:
         print("Failed to execute transaction")
         raise e
