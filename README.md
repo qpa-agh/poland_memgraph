@@ -277,29 +277,49 @@ In the future problems may come up again or computations may slow down significa
 ## Problems with point index
 ![alt text](imgs/point_index.png)  
 
-## Creating buildings neighbourhood problem
+## Performance Evaluation and Scalability Analysis
+### Creating buildings neighbourhood problem
+We conducted a performance evaluation of relationship creation. Processing approximately 10 000 building nodes took 3 minutes and resulted in over 3 milion relationships. 
+For example, the top red building in the below picture has over 300 relationships and this is a sh*t hole in the Podkarpackie voivodship.
 
 ![alt text](imgs/building_connection.png)  
 
+### Extrapolation to Full Dataset
+Extrapolating these results to the full dataset of 17 million building nodes suggests the following:
+- Processing all 17 million nodes would require an estimated 5100 minutes (85 hours), assuming a similar distribution of relationships.
+- This would result in approximately 5.1 billion relationships.
 
-Checking around 10000 buildings took 3 minutes and resulted in over 3 milion relationships. Checking all 17 milion nodes would take   5100 minutes (85hours) and result in 5.1 bilion relationships assuming similiar distribution.   
-export_util was checked for speed, did not work.   
-Multiple versions of parallelizations were checked, did not work.  
+#### Performance Bottlenecks
+We explored several optimization strategies to improve performance, including:  
+- `export_util` was checked for speed, did not work.   
+- Multiple versions of parallelizations were checked, did not work.  
+
+### Resource Consumption:
+Creating the initial 3 million relationships consumed 24.26 seconds and approximately 1GB of memory. Extrapolating this to the full dataset:
+Creating 5.1 billion relationships (1,700 times more than the initial test) would require an estimated 1.7TB of memory, assuming a similar relationship distribution.  
+
+1. A 500-meter radius around a single point (approximating a building as a point in this initial calculation) covers an area of 78.54 hectares (ha).
+2. Poland has an area of approximately 311,888 square kilometers (km²), which is equivalent to 31,188,800 ha. With 17 million buildings, this translates to an average of one building per 1.8 ha, assuming a uniform distribution across the country.
+3. Based on this uniform distribution, each building would, on average, have approximately 43 other buildings within its 500-meter radius (78.54 ha / 1.8 ha ≈ 43.6).
+4. If we consider non-directional relationships (i.e., if building A is within 500m of building B, the relationship is only counted once), the total number of relationships would be significantly reduced. With 17 million buildings and an average of 43 relationships per building, the total number of non-directional relationships would be approximately (17,000,000 * 43) / 2 = 365,500,000 which is approximately 366 million relationships.
+5. 366 mln relationships translates to over 100GB of memory.
+
+#### Impact of Building Dimensions:
+The calculation above assumes buildings are point locations. In reality, buildings have dimensions. Considering the distance between the edges of buildings further complicates the analysis and increases the potential number of relationships. This is because two buildings could be slightly further apart than 500m center to center, but still be within 500m edge to edge. This significantly increases the calculation complexity and the number of relationships.
  
-Creating thses 3 milion relationships took 24.26 seconds.    
-It also took around 1GB of memory.   
-Assuming 1700 time more relationship It would take 1.7TB of memory to store all of those relationships.   
-Still assuming similar rate of relationships acrosss the rest of the buildings.   
+### Scalability Tests with Tree Data
+#### Initial Test
+Using 1 million trees and a 50-meter radius for relationship creation, we generated 32 million edges (relationships) and consumed 4GB of memory.
 
-500 meter radius means that assuming 1d building, we need to check 785000 meters squared which equals to 78 ha  
-Dividing area of poland (311 888 km2 -> 31 188 800 ha) by 17 milion buildings we get one building per 1.8ha  
-Which means in the best case scenario (buildings located uniformly across Poland) each building will have 43 buildings.    
-If we could use non-directional relations that would be "only" 731 milion relationships.  
-This gets much worse, when we calculate distances from edge of a building to an edge of another building.  
-Please check our math.   
+#### Extrapolation to 17 Million Trees (Optimal Case):
 
-PS: Easier example with 1 milion trees, point spatial representation and only 50 meters created 32milion edges and took 4GB.   
-Just increasing the number of trees to 17 milion and assuming optimal case of each next copy being in another dimension (otherwise it would result in even more relationships) it will result in 544 milion edges and 68 BG of memory taken.  
+To estimate the impact of scaling to 17 million trees, we considered an optimal scenario where each additional tree is located in a separate dimension. This minimizes the number of new relationships created as the dataset grows (a highly unrealistic scenario, but useful for establishing a lower bound).
+
+Under this optimal scenario, scaling to 17 million trees would result in:
+- Estimated Edges: 544 million edges (32 million * 17).
+- Estimated Memory Consumption: 68 GB of memory (4 GB * 17).
+
+## Implementation
 
 ## Relationship creation time
 
