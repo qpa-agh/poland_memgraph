@@ -32,7 +32,7 @@ Docker with Docker Compose installed on the host OS
 docker compose up --build
 ```
 
-Recommended adding this link into file /etc/sysctl.conf
+Recommended adding this line into file /etc/sysctl.conf
 ```
 vm.max_map_count = 262144  
 ```

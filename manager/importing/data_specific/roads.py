@@ -13,11 +13,13 @@ def preprocess_roads_df(df):
     gdf = gpd.GeoDataFrame(df, crs="EPSG:4326", geometry='geometry')
     gdf['long'] = gdf.centroid.x
     gdf['lat'] = gdf.centroid.y
-
+    
+    gdf.to_crs(epsg=2180, inplace=True)
+    gdf = pd.concat([gdf, gdf.bounds], axis=1)
     df_roads = gdf.drop(['wkt', 'geometry', 'coordinates', 'nodes'], axis=1)
     return df_roads, df
 
-#id	name	road_class	lanes	width	oneway	long	lat
+#id	name	road_class	lanes	width	oneway	long	lat minx	miny	maxx	maxy
 def create_roads_input_query(path):
     return f"""
         LOAD CSV FROM '{path}' WITH HEADER AS row 
@@ -29,7 +31,9 @@ def create_roads_input_query(path):
             width: row.width,
             oneway: row.oneway,
             lat: toFloat(row.lat),
-            lng: toFloat(row.long)
+            lng: toFloat(row.long),
+            lower_left_corner: point({{x: toFloat(row.minx), y: toFloat(row.miny)}}),
+            upper_right_corner: point({{x: toFloat(row.maxx), y: toFloat(row.maxy)}})
         }})"""
 
 def create_road_label_index_query():
