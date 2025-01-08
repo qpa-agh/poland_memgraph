@@ -319,10 +319,11 @@ Under this optimal scenario, scaling to 17 million trees would result in:
 - Estimated Edges: 544 million edges (32 million * 17).
 - Estimated Memory Consumption: 68 GB of memory (4 GB * 17).
 
+![alt text](imgs/communes.png)
 ## Implementation
 
 ## Relationship creation time
-
+Relationship 1: 50.75 seconds (25,741 edges, 987.51 MiB)
 Relationship 6 (truncated to around 3 million) around 3 minutes 20 seconds    
 Relationship 7 created in 19.62 seconds. (32 milion edges, 4GB)   
 
@@ -332,7 +333,20 @@ Milestone 2: Data model & environment design - 6 hours
 Milestone 3: Data import - 30 hours  
 Milestone 4: Relationship detection - ?
  
-
-
+Optymalizacjaaa (query plan - EXPLAIN)
+przed:
+```
+MATCH (city:City), (commune:Commune)
+    WHERE point.withinbbox(city.center, commune.lower_left_corner, commune.upper_right_corner)
+    RETURN city.id AS city_id, city.center.x AS city_x, city.center.y AS city_y, commune.id AS commune_id, commune.wkt AS commune_wkt
+```
+po:
+```
+MATCH (commune:Commune) WITH  commune.lower_left_corner as llc, commune.upper_right_corner as dupa, commune
+MATCH (city:City) 
+    WHERE point.withinbbox(city.center, llc, dupa)
+    RETURN city.id AS city_id, city.center.x AS city_x, city.center.y AS city_y, commune.id AS commune_id, commune.wkt AS commune_wkt
+```
+![alt text](imgs/rel_1_cities_in_communes.png)
 # Resources
 1. https://memgraph.com/docs/data-migration/best-practices  
