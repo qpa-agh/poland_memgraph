@@ -1,12 +1,13 @@
 # Advanced Database Systems
 Paulina Gacek, Jakub Hulek
 
+# Milestone 1: Choice of technologies, model & definitions (and partially Milestone 2)
 ## Main Technology
 Memgraph [link](https://memgraph.com/)
 
 According to Memgraph documentation, nodes are stored in a skip list, a dynamic data structure that organizes nodes by their internal IDs.
 
-## Additional Technologies
+### Additional Technologies
 Python with Geopandas and Neo4j Libraries
 
 ## Architecture Overview
@@ -88,6 +89,7 @@ MATCH (n) RETURN n.geometry;
 - Geometry point as point type property  
 - Complex points as list of points  
 
+# Milestone 2: Data model & environment design (the rest)
 ## Importing data
 - 17 424 648 - number of buildings  
 - 14 698 410 - number of road nodes  
@@ -155,6 +157,7 @@ for file in target_nodes_directory.glob("*.csv"):
     - precomputed with geopandas, 
     - railway - road relationship
 
+# Milestone 3: Data import
 ## Data Import using CLI
 To interact with the manager CLI run  
 ```bash
@@ -208,7 +211,7 @@ Cartesian calculations take 6% less time.
 
 For memgraph-lab to visualise points on the map, nodes have to have properties "lat" and "lng".  
 
-Powiats
+### Powiats
 
 ![alt text](imgs/powiats.png)
 
@@ -252,18 +255,21 @@ Total time taken: 1043.01 seconds.
 All of the cities  
 ![alt text](imgs/all_cities.png)
 
-## Memory problems
-Many times it crashed due to memory problems.  
-Solution was to increase ram and swap for WSL2.    
+# Milestone 4: Relationship detection
+## Performance and Storage problems
+### Memory Limitations
+During development, we encountered numerous memory-related crashes. The solution was to increase the allocated RAM and swap for WSL2.
 
-### On disk transactional did not work
-We could try again in the future. But we focused on modelling relationships.  
+### On-Disk Transaction Considerations
+The next issue was that on disk transactional did not work.
+While this could be revisited in the future, our primary focus during this stage was on modeling relationships.
 
-In future problems may come up again or computations may slow down significantly.
+### Potential Future Issues
+In the future problems may come up again or computations may slow down significantly.
 
-## Possible solution (?)
-https://memgraph.com/blog/gqlalchemy-on-disk-storage
-Additional database for storing
+### Possible solutions (?)
+- gqlalchemy (link: https://memgraph.com/blog/gqlalchemy-on-disk-storage)
+- additional database for storing
 
 ## Road Connections
 ![alt text](imgs/example_road.png)  
@@ -300,12 +306,13 @@ Just increasing the number of trees to 17 milion and assuming optimal case of ea
 Relationship 6 (truncated to around 3 million) around 3 minutes 20 seconds    
 Relationship 7 created in 19.62 seconds. (32 milion edges, 4GB)   
 
-## Time it took for each milestone  
+# Time it took for each milestone  
 Milestone 1: Choice of technologies, model & definitions - 6 hours  
 Milestone 2: Data model & environment design - 6 hours  
 Milestone 3: Data import - 30 hours  
+Milestone 4: Relationship detection - ?
  
 
 
-## Resources
+# Resources
 1. https://memgraph.com/docs/data-migration/best-practices  
