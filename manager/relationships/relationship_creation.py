@@ -3,11 +3,12 @@ import numpy as np
 import pandas as pd
 import gc
 from shapely import wkt
-from shapely.geometry import Point, Polygon, MultiLineString, MultiPolygon
+from shapely.geometry import Point, Polygon, LineString, MultiLineString
 from pathlib import Path
 import os
 import shutil
 import csv
+from typing import Union
 
 from utils.parallelization import execute_with_pool
 from database.communication import (
@@ -17,20 +18,23 @@ from database.communication import (
 )
 
 
-def is_within(data):
-    city_id, city_x, city_y, commune_id, commune_wkt = data
-    city_point = Point(float(city_x), float(city_y))
-    line = wkt.loads(commune_wkt)
-
+def is_within(point: Point, line: Union[MultiLineString, LineString]) -> bool:
     if isinstance(line, MultiLineString):
         for subline in line.geoms:
             commune_polygon = Polygon(subline)
-            if commune_polygon.contains(city_point):
-                return [city_id, commune_id]
-    else:
-        commune_polygon = Polygon(line)
-        if commune_polygon.contains(city_point):
-            return [city_id, commune_id]
+            if commune_polygon.contains(point):
+                return True
+    elif isinstance(line, LineString):
+        return Polygon(line).contains(point)
+    return False
+
+
+def is_point_within_border(data):
+    point_id, x, y, border_id, border_wkt = data
+    point = Point(float(x), float(y))
+    line = wkt.loads(border_wkt)
+    if is_within(point, line):
+        return [point_id, border_id]
     return None
 
 
@@ -50,7 +54,9 @@ def create_relationship_1():
     """
     headers = ["city_id", "commune_id"]
     output_file = "/data/city_commune_data.csv"
-    execute_query_to_csv(query, headers, output_file, modifier_function=is_within)
+    execute_query_to_csv(
+        query, headers, output_file, modifier_function=is_point_within_border
+    )
 
     create_relationships_query = f"""
     LOAD CSV FROM '{output_file}' WITH HEADER AS row
@@ -67,7 +73,33 @@ def create_relationship_2():
     """
     Communes which are within powiat boundaries
     """
-    pass
+    execute_query("CREATE POINT INDEX ON :Commune(center)")
+    execute_query("CREATE INDEX ON :Powiat(id)")
+    execute_query("CREATE INDEX ON :Commune(id)")
+
+    query = """
+    MATCH (powiat:Powiat) 
+    WITH  powiat.lower_left_corner as llc, powiat.upper_right_corner as urc, powiat
+    MATCH (commune:Commune) 
+    WHERE point.withinbbox(commune.center, llc, urc)
+    RETURN commune.id AS commune_id, commune.center.x AS commune_x, commune.center.y AS commune_y, powiat.id AS powiat_id, powiat.wkt AS powiat_wkt
+    """
+    headers = ["commune_id", "powiat_id"]
+    output_file = "/data/commune_powiat_data.csv"
+    execute_query_to_csv(
+        query, headers, output_file, modifier_function=is_point_within_border
+    )
+
+    create_relationships_query = f"""
+    LOAD CSV FROM '{output_file}' WITH HEADER AS row
+    MATCH (commune:Commune {{id: toInteger(row.commune_id)}}), (powiat:Powiat {{id: toInteger(row.powiat_id)}})
+    CREATE (commune)-[:LOCATED_IN]->(powiat)
+    """
+    execute_query(create_relationships_query)
+
+    execute_query("DROP POINT INDEX ON :Commune(center)")
+    execute_query("DROP INDEX ON :Powiat(id)")
+    execute_query("DROP INDEX ON :Commune(id)")
 
 
 def create_relationship_3():
