@@ -164,11 +164,55 @@ def create_relationship_4():
     execute_query("DROP INDEX ON :Country(id)")
 
 
+def are_adjacent(data):
+    """Checks if two borders are adjacent."""
+    border_1_id, border_1_wkt, border_2_id, border_2_wkt = data
+    line1 = wkt.loads(border_1_wkt)
+    line2 = wkt.loads(border_2_wkt)
+
+    # A and B overlap if they have some but not all points in common,
+    # have the same dimension, and the intersection of the interiors
+    # of the two geometries has the same dimension as the geometries themselves.
+    # That is, only polyons can overlap other polygons and only lines can overlap
+    # other lines.
+    # if isinstance(line1, LineString) and isinstance(line2, LineString):
+    #     if line1.touches(line2) or line1.overlaps(line2):
+    #         return [border_1_id, border_2_id]
+    # elif isinstance(line1, MultiLineString) and isinstance(line2, LineString):
+    #     for subline1 in line1.geoms:
+    #         if subline1.touches(line2) or subline1.overlaps(line2):
+    #             return [border_1_id, border_2_id]
+    if line1.touches(line2) or line1.overlaps(line2):
+        return [border_1_id, border_2_id]
+    return None
+
+
 def create_relationship_5():
     """
     Neighbouring (adjacent) communes
     """
-    pass
+    execute_query("CREATE POINT INDEX ON :Commune(center)")
+    execute_query("CREATE INDEX ON :Commune(id)")
+    query = """
+        MATCH (c_max:Commune)
+        WITH MAX(point.distance(c_max.upper_right_corner, c_max.lower_left_corner)) as max_dia
+        MATCH (c1:Commune), (c2:Commune)
+        WHERE id(c1) < id(c2) AND point.distance(c1.center, c2.center) <= max_dia
+        RETURN c1.id AS commune1_id, c1.wkt AS commune1_wkt, 
+        c2.id AS commune2_id, c2.wkt AS commune2_wkt
+    """
+    headers = ["commune1_id", "commune2_id"]
+    output_file = "/data/adjacent_communes.csv"
+    execute_query_to_csv(query, headers, output_file, modifier_function=are_adjacent)
+    create_relationships_query = f"""
+    LOAD CSV FROM '{output_file}' WITH HEADER AS row
+    MATCH (c1:Commune {{id: toInteger(row.commune1_id)}}), (c2:Commune {{id: toInteger(row.commune2_id)}})
+    CREATE (c1)-[:IS_ADJACENT]->(c2), (c2)-[:IS_ADJACENT]->(c1)
+    """
+    execute_query(create_relationships_query)
+
+    execute_query("DROP POINT INDEX ON :Commune(center)")
+    execute_query("DROP INDEX ON :Commune(id)")
 
 
 def check_proximity(data, distance=500):

@@ -329,6 +329,7 @@ Relationship 1: 50.75 seconds (25,741 edges, 987.51 MiB)
 Relationship 2: 12.85 seconds (2,561 edges, 735.38 MiB)
 Relationship 3: 9.10 seconds (413 edges)
 Relationship 4: 3.08 seconds (31 edges)
+Relationship 5: 116.64 seconds (14,308 edges, 685.7 MiB)
 Relationship 6 (truncated to around 3 million) around 3 minutes 20 seconds    
 Relationship 7 created in 19.62 seconds. (32 milion edges, 4GB)   
 
@@ -356,5 +357,7 @@ MATCH (city:City)
 ![alt text](imgs/rel_2_communes_to_powiats.png)
 ![alt text](imgs/rel_3_powiats_to_voivodships.png)
 ![alt text](imgs/rel_4_voivodships_to_countries.png)
+![alt text](imgs/rel_5_adjacent_communes.png)
+![alt text](imgs/rel_5_adjacent_communes_2.png)
 # Resources
 1. https://memgraph.com/docs/data-migration/best-practices  
