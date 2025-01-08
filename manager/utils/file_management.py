@@ -3,6 +3,7 @@ import pandas as pd
 import shutil
 import gc
 
+
 def find_file(name):
     try:
         filename = next(
@@ -15,6 +16,7 @@ def find_file(name):
         raise e
     return filename
 
+
 def prepare_paths(name, filename, clear_output):
     source_filepath = os.path.join("/data", filename)
     output_dir = os.path.join("/data", name)
@@ -24,7 +26,8 @@ def prepare_paths(name, filename, clear_output):
             os.rmdir(output_dir)
     return source_filepath, output_dir
 
-def prepare_files(name, dataframe_modifier=None, max_rows=1_000_000, clear_output=False):
+
+def prepare_files(name, dataframe_modifier=None, max_rows=1_000_000, clear_output=True):
     print(name)
     filename = find_file(name)
     source_filepath, output_dir = prepare_paths(name, filename, clear_output)
@@ -32,7 +35,7 @@ def prepare_files(name, dataframe_modifier=None, max_rows=1_000_000, clear_outpu
         return output_dir
     if os.path.exists(output_dir) and clear_output:
         raise BaseException("Did not clear output properly")
-        
+
     split_large_csv(
         source_filepath,
         output_dir,

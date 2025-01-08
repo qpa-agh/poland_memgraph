@@ -26,7 +26,7 @@ def create_voivodships_input_query(path):
             name: row.name,
             lat: toFloat(row.lat),
             lng: toFloat(row.long),
-            geometry: row.wkt, 
+            wkt: row.wkt, 
             center: point({{x: toFloat(row.x), y: toFloat(row.y)}}) ,
             lower_left_corner: point({{x: toFloat(row.minx), y: toFloat(row.miny)}}),
             upper_right_corner: point({{x: toFloat(row.maxx), y: toFloat(row.maxy)}})

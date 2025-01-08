@@ -106,7 +106,31 @@ def create_relationship_3():
     """
     Powiats which are within voivodship boundaries
     """
-    pass
+    execute_query("CREATE POINT INDEX ON :Powiat(center)")
+    execute_query("CREATE INDEX ON :Powiat(id)")
+    execute_query("CREATE INDEX ON :Voivodship(id)")
+    query = """
+    MATCH (voivodship:Voivodship) 
+    WITH  voivodship.lower_left_corner as llc, voivodship.upper_right_corner as urc, voivodship
+    MATCH (powiat:Powiat) 
+    WHERE point.withinbbox(powiat.center, llc, urc)
+    RETURN powiat.id AS powiat_id, powiat.center.x AS powiat_x, powiat.center.y AS powiat_y, voivodship.id AS voivodship_id, voivodship.wkt AS voivodship_wkt
+    """
+    headers = ["powiat_id", "voivodship_id"]
+    output_file = "/data/powiat_voivodship_data.csv"
+    execute_query_to_csv(
+        query, headers, output_file, modifier_function=is_point_within_border
+    )
+
+    create_relationships_query = f"""
+    LOAD CSV FROM '{output_file}' WITH HEADER AS row
+    MATCH (powiat:Powiat {{id: toInteger(row.powiat_id)}}), (voivodship:Voivodship {{id: toInteger(row.voivodship_id)}})
+    CREATE (powiat)-[:LOCATED_IN]->(voivodship)
+    """
+    execute_query(create_relationships_query)
+    execute_query("DROP POINT INDEX ON :Powiat(center)")
+    execute_query("DROP INDEX ON :Powiat(id)")
+    execute_query("DROP INDEX ON :Voivodship(id)")
 
 
 def create_relationship_4():
