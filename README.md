@@ -359,5 +359,10 @@ MATCH (city:City)
 ![alt text](imgs/rel_4_voivodships_to_countries.png)
 ![alt text](imgs/rel_5_adjacent_communes.png)
 ![alt text](imgs/rel_5_adjacent_communes_2.png)
+
+Gmina miejsko-wiejska Pisz graniczy z gminami: Rozogi, Ruciane-Nida, Mikołajki, Orzysz, Biała Piska oraz Kolno, Łyse, Turośl w województwie podlaskim.
+
+![alt text](imgs/rel_5_pisz.png)
+
 # Resources
 1. https://memgraph.com/docs/data-migration/best-practices  
