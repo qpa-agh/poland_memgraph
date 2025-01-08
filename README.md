@@ -321,12 +321,14 @@ Under this optimal scenario, scaling to 17 million trees would result in:
 
 ![alt text](imgs/communes.png)
 ![alt text](imgs/voivodships.png)
+![alt text](imgs/countries.png)
 ## Implementation
 
 ## Relationship creation time
 Relationship 1: 50.75 seconds (25,741 edges, 987.51 MiB)
 Relationship 2: 12.85 seconds (2,561 edges, 735.38 MiB)
-Relationship 3: 9.10 seconds (413, 9.10 seconds)
+Relationship 3: 9.10 seconds (413 edges)
+Relationship 4: 3.08 seconds (31 edges)
 Relationship 6 (truncated to around 3 million) around 3 minutes 20 seconds    
 Relationship 7 created in 19.62 seconds. (32 milion edges, 4GB)   
 
@@ -353,5 +355,6 @@ MATCH (city:City)
 ![alt text](imgs/rel_1_cities_in_communes.png)
 ![alt text](imgs/rel_2_communes_to_powiats.png)
 ![alt text](imgs/rel_3_powiats_to_voivodships.png)
+![alt text](imgs/rel_4_voivodships_to_countries.png)
 # Resources
 1. https://memgraph.com/docs/data-migration/best-practices  

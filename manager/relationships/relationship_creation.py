@@ -137,7 +137,31 @@ def create_relationship_4():
     """
     Voivodship which are within country boundaries
     """
-    pass
+    execute_query("CREATE POINT INDEX ON :Voivodship(center)")
+    execute_query("CREATE INDEX ON :Voivodship(id)")
+    execute_query("CREATE INDEX ON :Country(id)")
+    query = """
+    MATCH (country:Country) 
+    WITH  country.lower_left_corner as llc, country.upper_right_corner as urc, country
+    MATCH (voivodship:Voivodship) 
+    WHERE point.withinbbox(voivodship.center, llc, urc)
+    RETURN voivodship.id AS voivodship_id, voivodship.center.x AS voivodship_x, voivodship.center.y AS voivodship_y, country.id AS country_id, country.wkt AS country_wkt
+    """
+    headers = ["voivodship_id", "country_id"]
+    output_file = "/data/voivodship_country_data.csv"
+    execute_query_to_csv(
+        query, headers, output_file, modifier_function=is_point_within_border
+    )
+
+    create_relationships_query = f"""
+    LOAD CSV FROM '{output_file}' WITH HEADER AS row
+    MATCH (voivodship:Voivodship {{id: toInteger(row.voivodship_id)}}), (country:Country {{id: toInteger(row.country_id)}})
+    CREATE (voivodship)-[:LOCATED_IN]->(country)
+    """
+    execute_query(create_relationships_query)
+    execute_query("DROP POINT INDEX ON :Voivodship(center)")
+    execute_query("DROP INDEX ON :Voivodship(id)")
+    execute_query("DROP INDEX ON :Country(id)")
 
 
 def create_relationship_5():
