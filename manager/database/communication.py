@@ -28,7 +28,7 @@ def execute_query(query):
         raise e
 
 
-def execute_query_to_csv(query, headers, output_file, modifier_function=None):
+def execute_query_to_csv(query, headers, output_file, modifier_function=None, expand_output_list=False):
     """Runs the query and saves the query results to csv."""
 
     def process_records(tx):
@@ -38,14 +38,19 @@ def execute_query_to_csv(query, headers, output_file, modifier_function=None):
             writer = csv.writer(csvfile)
 
             writer.writerow(headers)
-
-            for record in result:
-                if modifier_function is None:
+            if modifier_function is None:
+                for record in result:
                     writer.writerow(record.values())
-                else:
+
+            else:
+                for record in result:
                     modified_record = modifier_function(record.values())
                     if modified_record is not None:
-                        writer.writerow(modified_record)
+                        if expand_output_list:
+                            writer.writerows(modified_record)
+                        else:
+                            writer.writerow(modified_record)
+                            
         return "finished"
 
     with GraphDatabase.driver(URI, auth=AUTH) as client:
@@ -60,6 +65,7 @@ def execute_query_to_csv_parallelized(
     headers,
     output_directory,
     modifier_function=None,
+    expand_output_list=False,
     num_processes=10,
     chunk_size=100,
 ):
@@ -69,6 +75,7 @@ def execute_query_to_csv_parallelized(
             headers,
             os.path.join(output_directory, "chunk_001.csv"),
             modifier_function=modifier_function,
+            expand_output_list=expand_output_list
         )
 
     os.makedirs(output_directory, exist_ok=True)
@@ -92,6 +99,7 @@ def execute_query_to_csv_parallelized(
                             os.path.join(output_directory, f"chunk_{last_i:03d}.csv"),
                             headers,
                             modifier_function,
+                            expand_output_list
                         )
                     )
                     last_i += 1
@@ -112,12 +120,15 @@ def execute_query_to_csv_parallelized(
             print(value)
 
 
-def process_record_chunk(chunk, output_file, headers, modifier_function):
+def process_record_chunk(chunk, output_file, headers, modifier_function, expand_output_list):
     processed = []
     for record in chunk:
         modified_record = modifier_function(record)
         if modified_record is not None:
-            processed.append(modified_record)
+            if expand_output_list:
+                processed.extend(modified_record)
+            else:
+                processed.append(modified_record)
     with open(output_file, "w", newline="") as csvfile:
         writer = csv.writer(csvfile)
         writer.writerow(headers)

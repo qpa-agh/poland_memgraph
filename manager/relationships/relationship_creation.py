@@ -2,8 +2,9 @@ import geopandas as gpd
 import numpy as np
 import pandas as pd
 import gc
-from shapely import wkt
+from shapely import wkt, prepare
 from shapely.geometry import Point, Polygon, LineString, MultiLineString
+
 from pathlib import Path
 import os
 import shutil
@@ -306,11 +307,80 @@ def create_relationship_7():
     execute_query("DROP INDEX ON :Tree")
 
 
+def check_trees_for_distance(data, distance=20):
+    road_id, road_wkt, tree_ids, tree_xs, tree_ys = data
+    trees = [(tree_id, Point(float(tree_x), float(tree_y))) for tree_id, tree_x, tree_y in zip(tree_ids, tree_xs, tree_ys) ]
+    road_geom = wkt.loads(road_wkt)
+
+    prepare(road_geom)
+    return_values = [(road_id, tree_id) for tree_id, tree in trees if road_geom.dwithin(tree, distance)]
+    
+    return None if len(return_values) == 0 else return_values
+
+# id1    id2 actual_distance
+def create_road_tree_connetions_query(path):
+    return f"""
+        LOAD CSV FROM '{path}' WITH HEADER AS row
+        MATCH (road:Road {{id: toInteger(row.road_id)}}), (tree:Tree {{id: toInteger(row.tree_id)}})
+        CREATE (tree)-[:NEAR]->(road)
+    """
+
 def create_relationship_8():
     """
     Trees which are not further than 20 meters from a road
     """
-    pass
+
+    query = """
+    MATCH (road:Road)
+    WITH road, point({x: road.lower_left_corner.x - 20, y: road.lower_left_corner.y - 20}) as llc, point({x: road.upper_right_corner.x + 20, y: road.upper_right_corner.y + 20}) as urc
+    MATCH (tree:Tree)
+    WHERE point.withinbbox(tree.geometry, llc, urc)
+    RETURN road.id, road.wkt,  COLLECT(tree.id) as tree_ids, COLLECT(tree.geometry.x) as tree_xs, COLLECT(tree.geometry.y) as tree_ys
+    """
+    
+    headers = ["road_id", "tree_id"]
+
+    output_directory = "/data/trees_roads"
+    clear_precomputed = True
+    if clear_precomputed:
+        shutil.rmtree(output_directory)
+        if os.path.exists(output_directory):
+            os.rmdir(output_directory)
+
+    execute_query("CREATE INDEX ON :Tree(id)")
+    
+    if not os.path.exists(output_directory):
+        execute_query("CREATE POINT INDEX ON :Tree(geometry)")
+        execute_query("CREATE INDEX ON :Road")
+
+        execute_query_to_csv_parallelized(
+            query,
+            headers,
+            output_directory,
+            modifier_function=check_trees_for_distance,
+            expand_output_list=True,
+            chunk_size=5000,
+        )
+        
+        execute_query("DROP POINT INDEX ON :Tree(geometry)")
+        execute_query("DROP INDEX ON :Road")
+
+    execute_query("CREATE INDEX ON :Road(id)")
+
+    road_tree_connetions_queries = [
+        create_road_tree_connetions_query(
+            os.path.join(output_directory, file.name)
+        )
+        for file in Path(output_directory).glob("*.csv")
+    ]
+    
+    execute_with_pool(
+        execute_query, road_tree_connetions_queries, max_processes=10
+    )
+    execute_query("DROP INDEX ON :Tree(id)")
+    execute_query("DROP INDEX ON :Road(id)")
+    execute_query("FREE MEMORY")
+    
 
 
 def create_relationship_9():

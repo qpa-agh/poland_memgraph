@@ -7,6 +7,8 @@ from shapely.geometry import Point
 def preprocess_roads_df(df):
     df.fillna({'oneway': 'no'}, inplace=True)
     df['nodes'] = df['nodes'].apply(lambda x: list(eval('[' + x[1:-1] + ']')))
+    df['start_node_id'] = df['nodes'].apply(lambda x: x[0])
+    df['end_node_id'] = df['nodes'].apply(lambda x: x[-1])
     df['geometry'] = df['wkt'].apply(wkt.loads)
     df['coordinates'] = df['geometry'].apply(lambda geom: list(geom.coords))
 
@@ -15,11 +17,12 @@ def preprocess_roads_df(df):
     gdf['lat'] = gdf.centroid.y
     
     gdf.to_crs(epsg=2180, inplace=True)
+    gdf['wkt'] = gdf['geometry'].apply(wkt.dumps)
     gdf = pd.concat([gdf, gdf.bounds], axis=1)
-    df_roads = gdf.drop(['wkt', 'geometry', 'coordinates', 'nodes'], axis=1)
+    df_roads = gdf.drop(['geometry', 'coordinates', 'nodes'], axis=1)
     return df_roads, df
 
-#id	name	road_class	lanes	width	oneway	long	lat minx	miny	maxx	maxy
+#id	name	road_class	lanes	width	oneway  start_node_id   end_node_id	long	lat minx	miny	maxx	maxy
 def create_roads_input_query(path):
     return f"""
         LOAD CSV FROM '{path}' WITH HEADER AS row 
@@ -30,6 +33,9 @@ def create_roads_input_query(path):
             lanes: row.lanes,
             width: row.width,
             oneway: row.oneway,
+            start_node_id: toInteger(row.start_node_id),
+            end_node_id: toInteger(row.end_node_id),
+            wkt: row.wkt,
             lat: toFloat(row.lat),
             lng: toFloat(row.long),
             lower_left_corner: point({{x: toFloat(row.minx), y: toFloat(row.miny)}}),
@@ -63,7 +69,6 @@ def preprocess_road_node_df(df):
     gdf_nodes['y'] = gdf_nodes.geometry.y
 
     gdf_nodes = gdf_nodes.drop(['geometry'], axis=1)
-    gdf_nodes.drop_duplicates(subset="id", inplace=True)
     return gdf_nodes
 
 
@@ -79,7 +84,9 @@ def create_road_node_input_query(path):
         }})
         """
         
-# id	road_id	long	lat	x	y
+    
+        
+# id	road_id	
 def create_road_node_road_connection_query(path):
     return f"""
         LOAD CSV FROM '{path}' WITH HEADER AS row 
