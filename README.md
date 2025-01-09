@@ -248,84 +248,26 @@ Total time taken: 1043.01 seconds.
 ```
 
 ## Results
-36 milion nodes
+36 milion nodes - 12.5 GB
 
-12.5 GB
-
-All of the cities  
+### Cities
 ![alt text](imgs/all_cities.png)
 
-# Milestone 4: Relationship detection
-## Performance and Storage problems
-### Memory Limitations
-During development, we encountered numerous memory-related crashes. The solution was to increase the allocated RAM and swap for WSL2.
-
-### On-Disk Transaction Considerations
-The next issue was that on disk transactional did not work.
-While this could be revisited in the future, our primary focus during this stage was on modeling relationships.
-
-### Potential Future Issues
-In the future problems may come up again or computations may slow down significantly.
-
-### Possible solutions (?)
-- gqlalchemy (link: https://memgraph.com/blog/gqlalchemy-on-disk-storage)
-- additional database for storing
-
-## Road Connections
-![alt text](imgs/example_road.png)  
-
-## Problems with point index
-![alt text](imgs/point_index.png)  
-
-## Performance Evaluation and Scalability Analysis
-### Creating buildings neighbourhood problem
-We conducted a performance evaluation of relationship creation. Processing approximately 10 000 building nodes took 3 minutes and resulted in over 3 milion relationships. 
-For example, the top red building in the below picture has over 300 relationships and this is a sh*t hole in the Podkarpackie voivodship.
-
-![alt text](imgs/building_connection.png)  
-
-### Extrapolation to Full Dataset
-Extrapolating these results to the full dataset of 17 million building nodes suggests the following:
-- Processing all 17 million nodes would require an estimated 5100 minutes (85 hours), assuming a similar distribution of relationships.
-- This would result in approximately 5.1 billion relationships.
-
-#### Performance Bottlenecks
-We explored several optimization strategies to improve performance, including:  
-- `export_util` was checked for speed, did not work.   
-- Multiple versions of parallelizations were checked, did not work.  
-
-### Resource Consumption:
-Creating the initial 3 million relationships consumed 24.26 seconds and approximately 1GB of memory. Extrapolating this to the full dataset:
-Creating 5.1 billion relationships (1,700 times more than the initial test) would require an estimated 1.7TB of memory, assuming a similar relationship distribution.  
-
-1. A 500-meter radius around a single point (approximating a building as a point in this initial calculation) covers an area of 78.54 hectares (ha).
-2. Poland has an area of approximately 311,888 square kilometers (km²), which is equivalent to 31,188,800 ha. With 17 million buildings, this translates to an average of one building per 1.8 ha, assuming a uniform distribution across the country.
-3. Based on this uniform distribution, each building would, on average, have approximately 43 other buildings within its 500-meter radius (78.54 ha / 1.8 ha ≈ 43.6).
-4. If we consider non-directional relationships (i.e., if building A is within 500m of building B, the relationship is only counted once), the total number of relationships would be significantly reduced. With 17 million buildings and an average of 43 relationships per building, the total number of non-directional relationships would be approximately (17,000,000 * 43) / 2 = 365,500,000 which is approximately 366 million relationships.
-5. 366 mln relationships translates to over 100GB of memory.
-
-#### Impact of Building Dimensions:
-The calculation above assumes buildings are point locations. In reality, buildings have dimensions. Considering the distance between the edges of buildings further complicates the analysis and increases the potential number of relationships. This is because two buildings could be slightly further apart than 500m center to center, but still be within 500m edge to edge. This significantly increases the calculation complexity and the number of relationships.
- 
-### Scalability Tests with Tree Data
-#### Initial Test
-Using 1 million trees and a 50-meter radius for relationship creation, we generated 32 million edges (relationships) and consumed 4GB of memory.
-
-#### Extrapolation to 17 Million Trees (Optimal Case):
-
-To estimate the impact of scaling to 17 million trees, we considered an optimal scenario where each additional tree is located in a separate dimension. This minimizes the number of new relationships created as the dataset grows (a highly unrealistic scenario, but useful for establishing a lower bound).
-
-Under this optimal scenario, scaling to 17 million trees would result in:
-- Estimated Edges: 544 million edges (32 million * 17).
-- Estimated Memory Consumption: 68 GB of memory (4 GB * 17).
-
+### Communes
 ![alt text](imgs/communes.png)
+
+### Voivodships
 ![alt text](imgs/voivodships.png)
+
+### Countries
 ![alt text](imgs/countries.png)
 
-## Creating relationships with CLI tool
-1. Make sure you have all necessary nodes imported. If not run appropriate import commands, for example `import auto cities communes` to import cities and communes
-2. Create relationship, for example `cr 1` craetes the 1st relationship (Cities which are within commune boundaries)
+# Milestone 4: Relationship detection
+
+## Creating Relationships with the CLI Tool
+Our command-line interface (CLI) simplifies relationship creation. The process involves two main steps:
+1. Ensure all required nodes are already imported into the database. If not, use the appropriate import command. For example, to import cities and communes, run: `import auto cities communes`.
+2. Create a specific relationship using the cr command followed by the relationship number. For instance, to create the first relationship (Cities within commune boundaries), execute: `cr 1`. 
 
 ## Relationship Creation Performance
 The following list summarizes the time taken to create various relationships, along with the resulting number of edges and their approximate size:
@@ -342,7 +284,8 @@ The following list summarizes the time taken to create various relationships, al
 
 ## Implementation
 
-The first four relationships were implemented in a similar manner.
+### Relationships 1-4
+The first four relationships were implemented in a similar manner. They create "IS_LOCATED" relationship between bigger entity and smaller entity.
 
 1. Indexing and Spatial Filtering:
 We first created essential indexes (including point indexes) on relevant nodes to facilitate faster lookups.
@@ -371,6 +314,28 @@ We initially used a simple query that directly matched  City and Commune nodes:
 
    Finally, we cleaned up by deleting the temporary indexes created for efficient execution.
    The first four relationships were implemented analogously. First we created necessary indexes and point indexes. Then we obtained the candidate nodes for creating relationships, ooptimiizng the query and srinking the search space as much as we can. For example, in first relationship we returned only pairs with communes and cities within bounding boxes of these communes.
+
+### Relationship 5
+
+The core idea is to efficiently filter commune pairs before performing computationally expensive adjacency checks. This is achieved through the following steps:
+
+1. First we calculate the maximum diamiter (max_dia) among all communes, which at the same time is the longest possible distance between the centers of 2 communes.
+2. Only pairs whose centers are within max_dia of each other are considered potential neighbors. This spatial pre-filtering drastically reduces the number of pairs that need to be checked for actual adjacency.
+3. To further optimize, the query enforces a directional comparison using id(c1) < id(c2). This ensures that each commune pair is evaluated only once, preventing redundant calculations.
+
+### Geometric Adjacency Check
+
+A geometric check is performed using the `touches` or `overlaps` functions from a spatial library shapely. This function uses WKT representations of the commune boundaries to determine actual adjacency.
+
+      A and B overlap if they have some but not all points in common, have the same dimension, and the intersection of the interiors of the two geometries has the same dimension as the geometries themselves.
+
+As the result, adjacent communes are connected with the "IS_ADJACENT" relationship to each other (bidirectional relationship).
+
+### Relationship 6
+### Relationship 7
+### Relationship 8
+### Relationship 9
+### Relationship 10
 
 ## Examples of implemented relationships to be detected
 ### Relationship 1 - Cities which are within commune boundaries
@@ -410,11 +375,75 @@ Gmina miejsko-wiejska Pisz (the Pisz urban-rural commune) borders the following 
 ### Relationship 10 - Railways which cross roads; attributes:
 ![alt text](imgs/rel_10_railway_road_proposed.png)
 
+
+## Performance and Storage problems
+### Memory Limitations
+During development, we encountered numerous memory-related crashes. The solution was to increase the allocated RAM and swap for WSL2.
+
+### On-Disk Transaction Considerations
+The next issue was that on disk transactional did not work.
+While this could be revisited in the future, our primary focus during this stage was on modeling relationships.
+
+### Potential Future Issues
+In the future problems may come up again or computations may slow down significantly.
+
+### Possible solutions (?)
+- gqlalchemy (link: https://memgraph.com/blog/gqlalchemy-on-disk-storage)
+- additional database for storing
+
+### Road Connections
+![alt text](imgs/example_road.png)  
+
+### Problems with point index
+![alt text](imgs/point_index.png)  
+
+### Performance Evaluation and Scalability Analysis
+#### Creating buildings neighbourhood problem
+We conducted a performance evaluation of relationship creation. Processing approximately 10 000 building nodes took 3 minutes and resulted in over 3 milion relationships. 
+For example, the top red building in the below picture has over 300 relationships and this is a sh*t hole in the Podkarpackie voivodship.
+
+![alt text](imgs/building_connection.png)  
+
+#### Extrapolation to Full Dataset
+Extrapolating these results to the full dataset of 17 million building nodes suggests the following:
+- Processing all 17 million nodes would require an estimated 5100 minutes (85 hours), assuming a similar distribution of relationships.
+- This would result in approximately 5.1 billion relationships.
+
+##### Performance Bottlenecks
+We explored several optimization strategies to improve performance, including:  
+- `export_util` was checked for speed, did not work.   
+- Multiple versions of parallelizations were checked, did not work.  
+
+#### Resource Consumption:
+Creating the initial 3 million relationships consumed 24.26 seconds and approximately 1GB of memory. Extrapolating this to the full dataset:
+Creating 5.1 billion relationships (1,700 times more than the initial test) would require an estimated 1.7TB of memory, assuming a similar relationship distribution.  
+
+1. A 500-meter radius around a single point (approximating a building as a point in this initial calculation) covers an area of 78.54 hectares (ha).
+2. Poland has an area of approximately 311,888 square kilometers (km²), which is equivalent to 31,188,800 ha. With 17 million buildings, this translates to an average of one building per 1.8 ha, assuming a uniform distribution across the country.
+3. Based on this uniform distribution, each building would, on average, have approximately 43 other buildings within its 500-meter radius (78.54 ha / 1.8 ha ≈ 43.6).
+4. If we consider non-directional relationships (i.e., if building A is within 500m of building B, the relationship is only counted once), the total number of relationships would be significantly reduced. With 17 million buildings and an average of 43 relationships per building, the total number of non-directional relationships would be approximately (17,000,000 * 43) / 2 = 365,500,000 which is approximately 366 million relationships.
+5. 366 mln relationships translates to over 100GB of memory.
+
+##### Impact of Building Dimensions:
+The calculation above assumes buildings are point locations. In reality, buildings have dimensions. Considering the distance between the edges of buildings further complicates the analysis and increases the potential number of relationships. This is because two buildings could be slightly further apart than 500m center to center, but still be within 500m edge to edge. This significantly increases the calculation complexity and the number of relationships.
+ 
+#### Scalability Tests with Tree Data
+##### Initial Test
+Using 1 million trees and a 50-meter radius for relationship creation, we generated 32 million edges (relationships) and consumed 4GB of memory.
+
+##### Extrapolation to 17 Million Trees (Optimal Case):
+
+To estimate the impact of scaling to 17 million trees, we considered an optimal scenario where each additional tree is located in a separate dimension. This minimizes the number of new relationships created as the dataset grows (a highly unrealistic scenario, but useful for establishing a lower bound).
+
+Under this optimal scenario, scaling to 17 million trees would result in:
+- Estimated Edges: 544 million edges (32 million * 17).
+- Estimated Memory Consumption: 68 GB of memory (4 GB * 17).
+
 # Time it took for each milestone  
 Milestone 1: Choice of technologies, model & definitions - 6 hours  
 Milestone 2: Data model & environment design - 6 hours  
 Milestone 3: Data import - 30 hours  
-Milestone 4: Relationship detection - 75 hours
+Milestone 4: Relationship detection - 80 hours
 
 # Resources
 1. https://memgraph.com/docs/data-migration/best-practices  
