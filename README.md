@@ -333,12 +333,14 @@ Relationship 5: 116.64 seconds (14,308 edges, 685.7 MiB)
 Relationship 6 (truncated to around 3 million) around 3 minutes 20 seconds    
 Relationship 7 created in 19.62 seconds. (32 milion edges, 4GB)   
 Relationship 8 created in 31.68 seconds. (1.3 milion edges)  
+Relationship 9 created in 118.00 seconds. (6 milion edges)
+Relationship 10 created in 134.50 seconds. (60k edges)
 
 # Time it took for each milestone  
 Milestone 1: Choice of technologies, model & definitions - 6 hours  
 Milestone 2: Data model & environment design - 6 hours  
 Milestone 3: Data import - 30 hours  
-Milestone 4: Relationship detection - 70 hours
+Milestone 4: Relationship detection - 75 hours
  
 Optymalizacjaaa (query plan - EXPLAIN)
 przed:
@@ -361,10 +363,12 @@ MATCH (city:City)
 ![alt text](imgs/rel_5_adjacent_communes.png)
 ![alt text](imgs/rel_5_adjacent_communes_2.png)
 ![alt text](imgs/building_connection.png)  
-
-![alt text](imgs/road_trees.png)  
-
-Gmina miejsko-wiejska Pisz graniczy z gminami: Rozogi, Ruciane-Nida, Mikołajki, Orzysz, Biała Piska oraz Kolno, Łyse, Turośl w województwie podlaskim.
+![alt text](imgs/rel_7_trees.png)
+![alt text](imgs/rel_8_road_trees.png)  
+![alt text](imgs/rel_9_connected_roads.png)
+![alt text](imgs/rel_9_connected_roads_2.png)
+![alt text](imgs/rel_10_railway_road_proposed.png)
+Gmina miejsko-wiejska Pisz graniczy z gminami: Rozogi, Ruciane-Nida, Mikołajki, Orzysz, Biała Piska oraz Kolno, Łyse, Turośl w województwie podlaskim.  
 
 ![alt text](imgs/rel_5_pisz.png)
 

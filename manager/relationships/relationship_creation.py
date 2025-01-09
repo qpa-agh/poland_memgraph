@@ -341,7 +341,7 @@ def create_relationship_8():
     headers = ["road_id", "tree_id"]
 
     output_directory = "/data/trees_roads"
-    clear_precomputed = True
+    clear_precomputed = False
     if clear_precomputed:
         shutil.rmtree(output_directory)
         if os.path.exists(output_directory):
@@ -389,14 +389,143 @@ def create_relationship_9():
     attributes: connecting node identifier,
     which part of one road is connected to the other road (start, mid, end)
     """
-    pass
+    query = """
+    MATCH (rn:RoadNode)
+    MATCH (rn)-[:BELONGS_TO]->(r:Road)
+    WITH rn, COLLECT(r) as roads, extract(road IN COLLECT(r)| CASE WHEN road.start_node_id = rn.id THEN "start" WHEN road.end_node_id = rn.id THEN "end" ELSE "mid" END) as parts
+    WHERE SIZE(roads) > 1
+    FOREACH (index1 IN RANGE(0, SIZE(roads) - 2) |
+        FOREACH (index2 IN RANGE(index1 + 1, SIZE(roads) - 1) |
+            FOREACH (firstRoad IN [roads[index1]] |
+                FOREACH (secondRoad IN [roads[index2]] | 
+                    CREATE (firstRoad)-[:ROAD_CONNECTED_TO {rn_id: rn.id, part: parts[index1]}]->(secondRoad)
+                    CREATE (secondRoad)-[:ROAD_CONNECTED_TO {rn_id: rn.id, part: parts[index2]}]->(firstRoad)
+                )
+            )
+        )
+    )
+    """
+    
+    execute_query("CREATE INDEX ON :Road(id)")
+    execute_query("CREATE INDEX ON :Road")
+    execute_query("CREATE INDEX ON :RoadNode")
+    
+    execute_query(query)
 
+    execute_query("DROP INDEX ON :Road(id)")
+    execute_query("DROP INDEX ON :Road")
+    execute_query("DROP INDEX ON :RoadNode")
+    execute_query("FREE MEMORY")
+    
+    
+def calculate_angle(segment1, segment2):
+
+    x1, y1, x2, y2 = *segment1.coords[0], *segment1.coords[1]
+    x3, y3, x4, y4 = *segment2.coords[0], *segment2.coords[1]
+
+    vector1 = (x2 - x1, y2 - y1)
+    vector2 = (x4 - x3, y4 - y3)
+
+    dot_product = vector1[0] * vector2[0] + vector1[1] * vector2[1]
+    magnitude1 = np.sqrt(vector1[0]**2 + vector1[1]**2)
+    magnitude2 = np.sqrt(vector2[0]**2 + vector2[1]**2)
+
+    cos_theta = dot_product / (magnitude1 * magnitude2)
+    cos_theta = min(1, max(-1, cos_theta)) 
+
+    angle = np.acos(cos_theta) * (180 / np.pi)
+    return angle
+    
+def check_railroad_road_intersection(data):
+    railroad_id, railroad_wkt, road_ids, road_wkts = data
+    roads = [(road_id, wkt.loads(road_wkt)) for road_id, road_wkt in zip(road_ids, road_wkts) ]
+    railroad_geom = wkt.loads(railroad_wkt)
+    prepare(railroad_geom)
+    
+    return_values = []
+    for road_id, road in roads:
+        if railroad_geom.crosses(road):
+            for i in range(len(railroad_geom.coords) - 1):
+                railroad_segment = LineString([railroad_geom.coords[i], railroad_geom.coords[i + 1]])
+                prepare(railroad_segment)
+
+                for j in range(len(road.coords) - 1):
+                    road_segment = LineString([road.coords[j], road.coords[j + 1]])
+
+                    if railroad_segment.crosses(road_segment):
+                        angle = calculate_angle(railroad_segment, road_segment)
+                        return_values.append((railroad_id, road_id, angle))
+
+    
+    return None if len(return_values) == 0 else return_values    
+
+# ["railway_id", "road_id", "angle"]
+def create_road_railway_crossing_query(path):
+    return f"""
+        LOAD CSV FROM '{path}' WITH HEADER AS row
+        MATCH (railway:Railway {{id: toInteger(row.railway_id)}}), (road:Road {{id: toInteger(row.road_id)}})
+        CREATE (railway)-[:CROSSES {{angle: toFloat(row.angle)}}]->(road)
+    """
 
 def create_relationship_10():
     """
     Railways which cross roads; attributes: angle
     """
-    pass
+    
+    query="""
+    MATCH (ra:Railway)
+    WITH point.distance(ra.upper_right_corner, ra.lower_left_corner) as max_distance, ra, ra.upper_right_corner as p
+    MATCH (r:Road)
+    WHERE point.distance(r.upper_right_corner, p) <= max_distance AND
+        ra.upper_right_corner.x >= r.lower_left_corner.x AND 
+        r.upper_right_corner.x >= ra.lower_left_corner.x AND 
+        ra.upper_right_corner.y >= r.lower_left_corner.y AND 
+        r.upper_right_corner.y >= ra.lower_left_corner.y
+    RETURN ra.id, ra.wkt, COLLECT(r.id), COLLECT(r.wkt)
+    """
+    
+    headers = ["railway_id", "road_id", "angle"]
+
+    output_directory = "/data/railway_road_intersections"
+    clear_precomputed = False
+    if clear_precomputed:
+        shutil.rmtree(output_directory)
+        if os.path.exists(output_directory):
+            os.rmdir(output_directory)
+
+
+    if not os.path.exists(output_directory):
+        execute_query("CREATE POINT INDEX ON :Road(upper_right_corner)")
+        execute_query("CREATE INDEX ON :Railway")
+
+        execute_query_to_csv_parallelized(
+            query,
+            headers,
+            output_directory,
+            modifier_function=check_railroad_road_intersection,
+            expand_output_list=True,
+            chunk_size=2000,
+        )
+        
+        execute_query("DROP POINT INDEX ON :Road(upper_right_corner)")
+        execute_query("DROP INDEX ON :Railway")
+
+    execute_query("CREATE INDEX ON :Road(id)")
+    execute_query("CREATE INDEX ON :Railway(id)")
+
+    road_railway_crossing_queries = [
+        create_road_railway_crossing_query(
+            os.path.join(output_directory, file.name)
+        )
+        for file in Path(output_directory).glob("*.csv")
+    ]
+    
+    execute_with_pool(
+        execute_query, road_railway_crossing_queries, max_processes=10
+    )
+    execute_query("DROP INDEX ON :Railway(id)")
+    execute_query("DROP INDEX ON :Road(id)")
+    execute_query("FREE MEMORY")
 
 
 RELATIONSHIP_CREATORS = {

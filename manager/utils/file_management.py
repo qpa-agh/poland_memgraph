@@ -27,7 +27,7 @@ def prepare_paths(name, filename, clear_output):
     return source_filepath, output_dir
 
 
-def prepare_files(name, dataframe_modifier=None, max_rows=1_000_000, clear_output=True):
+def prepare_files(name, dataframe_modifier=None, max_rows=1_000_000, clear_output=False):
     print(name)
     filename = find_file(name)
     source_filepath, output_dir = prepare_paths(name, filename, clear_output)
