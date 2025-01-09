@@ -285,7 +285,7 @@ The following list summarizes the time taken to create various relationships, al
 ## Implementation
 
 ### Relationships 1-4
-The first four relationships were implemented in a similar manner. They create "IS_LOCATED" relationship between bigger entity and smaller entity.
+The first four relationships were implemented in a similar manner. They create "LOCATED_IN" relationship between bigger entity and smaller entity.
 
 1. Indexing and Spatial Filtering:
 We first created essential indexes (including point indexes) on relevant nodes to facilitate faster lookups.
@@ -330,12 +330,6 @@ A geometric check is performed using the `touches` or `overlaps` functions from 
       A and B overlap if they have some but not all points in common, have the same dimension, and the intersection of the interiors of the two geometries has the same dimension as the geometries themselves.
 
 As the result, adjacent communes are connected with the "IS_ADJACENT" relationship to each other (bidirectional relationship).
-
-### Relationship 6
-### Relationship 7
-### Relationship 8
-### Relationship 9
-### Relationship 10
 
 ## Examples of implemented relationships to be detected
 ### Relationship 1 - Cities which are within commune boundaries
@@ -438,6 +432,80 @@ To estimate the impact of scaling to 17 million trees, we considered an optimal 
 Under this optimal scenario, scaling to 17 million trees would result in:
 - Estimated Edges: 544 million edges (32 million * 17).
 - Estimated Memory Consumption: 68 GB of memory (4 GB * 17).
+
+# Guide on running visualization
+In one terminal run the docker compose to set up the environment:
+```
+docker-compose up --build
+```
+Now you can open the frontend under the url specified in logs, for us it was `http://localhost:3000`. You have to login to the database with the following credentials:
+- username: testuser123
+- password: t123
+
+In the 2nd terminal run manager container:
+```
+docker compose run --rm manager
+```
+**All commands you want to run on via CLI tool has to be run in this 2nd terminal.**
+
+## Test scenario 1: Adjacent communes to the biggest commune in Poland: Gmina Pisz
+1. Run environment in the first terminal
+2. Open frontend and log in into database
+3. To make sure you are working on the plain database and to avoid node duplications, clear everything by running the query:
+   ```
+   MATCH (n) DETACH DELETE n;
+   ```
+   The result should be as follows:
+   ![alt text](imgs/null.png)
+4. Run manager container in the 2nd terminal and import communes using CLI :
+   ```
+   import auto communes
+   ```
+   You know that it is finished when it outputs the total execution time.
+5. It should result in creating commune nodes:
+   ![alt text](imgs/tutorial_commune_nodes.png)
+6. Run creating 5th relationship in the CLI (2nd terminal):
+   ```
+   cr 5
+   ```
+7. In the frontend (Memgraph lab) run the following query to obtain all adjacent communes to the Pisz commune:
+   ```cypher
+   Match e=(c1:Commune{name:"gmina Pisz"})-[:IS_ADJACENT]->(c2)
+   Match w=(c1:Commune{name:"gmina Pisz"})<-[:IS_ADJACENT]-(c2)
+   Return e,w
+   ```
+8. You can also check all communes adjacent to Kraków commune:
+   ```
+   Match e=(c1:Commune{name:"Kraków"})-[:IS_ADJACENT]->(c2)
+   Match w=(c1:Commune{name:"Kraków"})<-[:IS_ADJACENT]-(c2)
+   Return e,w
+   ```
+   ![alt text](imgs/tutorial_krakow.png)
+
+## Test scenario 2: Cities inside gmina Jasiniec
+1. Run environment in the first terminal
+2. Open frontend and log in into database
+3. To make sure you are working on the plain database and to avoid node duplications, clear everything by running the query:
+   ```
+   MATCH (n) DETACH DELETE n;
+   ```
+   The result should be as follows:
+   ![alt text](imgs/null.png)
+4. Run manager container in the 2nd terminal and import communes using CLI :
+   ```
+   import auto communes cities
+   ```
+   You know that it is finished when it outputs the total execution time.
+5. Run creating 1st relationship in the CLI (2nd terminal):
+   ```
+   cr 1
+   ```
+6. In the frontend (Memgraph lab) run the following query to obtain all cities within "gmina Jasiniec"
+   ```
+   Match e=(city:City)-[r:LOCATED_IN]->(commune:Commune{name:"gmina Jasieniec"})
+   return e
+   ```
+   ![alt text](imgs/tutorial_jasiniec.png)
 
 # Time it took for each milestone  
 Milestone 1: Choice of technologies, model & definitions - 6 hours  
