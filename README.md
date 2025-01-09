@@ -183,7 +183,7 @@ CREATE (n:Node {
 })
 ```
 
-```
+```cypher
 MATCH (n1:Node), (n2:Node)
 WHERE n1 != n2
 RETURN  n1.id, n2.id, point.distance(n1.geometry_earth, n2.geometry_earth) AS distance
@@ -193,7 +193,7 @@ This query took 4.85s frontend roundtrip, database execution 1.34s
 This query took 4.93s frontend roundtrip, database execution 1.21s  
 This query took 4.96s frontend roundtrip, database execution 1.22s  
  
-```
+```cypher
 MATCH (n1:Node), (n2:Node)
 WHERE n1 != n2
 RETURN  n1.id, n2.id, point.distance(n1.geometry_poland, n2.geometry_poland) AS distance
@@ -294,12 +294,12 @@ For example, in the first relationship, we only retrieved pairs where the city c
 
 2. Analyzing and Optimizing Queries:
 We initially used a simple query that directly matched  City and Commune nodes:
-   ```
+   ```cypher
       MATCH (city:City), (commune:Commune)
    ```
    However, this resulted in a Cartesian product, leading to a large number of comparisons.
    To address this, we used the EXPLAIN command to analyze the query plan and identify potential bottlenecks. Based on the analysis, we implemented a more optimized approach:
-   ```
+   ```cypher
    MATCH (commune:Commune) WITH commune.lower_left_corner as llc, commune.upper_right_corner as urc, commune 
    MATCH (city:City)  
    WHERE point.withinbbox(city.center, llc, urc) 
@@ -375,21 +375,11 @@ Gmina miejsko-wiejska Pisz (the Pisz urban-rural commune) borders the following 
 During development, we encountered numerous memory-related crashes. The solution was to increase the allocated RAM and swap for WSL2.
 
 ### On-Disk Transaction Considerations
-The next issue was that on disk transactional did not work.
-While this could be revisited in the future, our primary focus during this stage was on modeling relationships.
-
-### Potential Future Issues
-In the future problems may come up again or computations may slow down significantly.
-
-### Possible solutions (?)
+The next issue was that on disk transactional did not work.   
+While this could be revisited in the future, our primary focus during this stage was on modeling relationships.  
+Possible solutions:  
 - gqlalchemy (link: https://memgraph.com/blog/gqlalchemy-on-disk-storage)
 - additional database for storing
-
-### Road Connections
-![alt text](imgs/example_road.png)  
-
-### Problems with point index
-![alt text](imgs/point_index.png)  
 
 ### Performance Evaluation and Scalability Analysis
 #### Creating buildings neighbourhood problem
@@ -475,7 +465,7 @@ docker compose run --rm manager
    Return e,w
    ```
 8. You can also check all communes adjacent to Kraków commune:
-   ```
+   ```cypher
    Match e=(c1:Commune{name:"Kraków"})-[:IS_ADJACENT]->(c2)
    Match w=(c1:Commune{name:"Kraków"})<-[:IS_ADJACENT]-(c2)
    Return e,w
@@ -501,7 +491,7 @@ docker compose run --rm manager
    cr 1
    ```
 6. In the frontend (Memgraph lab) run the following query to obtain all cities within "gmina Jasiniec"
-   ```
+   ```cypher
    Match e=(city:City)-[r:LOCATED_IN]->(commune:Commune{name:"gmina Jasieniec"})
    return e
    ```
