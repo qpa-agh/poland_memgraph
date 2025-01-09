@@ -176,13 +176,7 @@ def are_adjacent(data):
     # of the two geometries has the same dimension as the geometries themselves.
     # That is, only polyons can overlap other polygons and only lines can overlap
     # other lines.
-    # if isinstance(line1, LineString) and isinstance(line2, LineString):
-    #     if line1.touches(line2) or line1.overlaps(line2):
-    #         return [border_1_id, border_2_id]
-    # elif isinstance(line1, MultiLineString) and isinstance(line2, LineString):
-    #     for subline1 in line1.geoms:
-    #         if subline1.touches(line2) or subline1.overlaps(line2):
-    #             return [border_1_id, border_2_id]
+
     if line1.touches(line2) or line1.overlaps(line2):
         return [border_1_id, border_2_id]
     return None

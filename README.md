@@ -322,55 +322,99 @@ Under this optimal scenario, scaling to 17 million trees would result in:
 ![alt text](imgs/communes.png)
 ![alt text](imgs/voivodships.png)
 ![alt text](imgs/countries.png)
+
+## Creating relationships with CLI tool
+1. Make sure you have all necessary nodes imported. If not run appropriate import commands, for example `import auto cities communes` to import cities and communes
+2. Create relationship, for example `cr 1` craetes the 1st relationship (Cities which are within commune boundaries)
+
+## Relationship Creation Performance
+The following list summarizes the time taken to create various relationships, along with the resulting number of edges and their approximate size:
+- Relationship 1: 50.75 seconds (25,741 edges, 987.51 MiB)
+- Relationship 2: 12.85 seconds (2,561 edges, 735.38 MiB)
+- Relationship 3: 9.10 seconds (413 edges)
+- Relationship 4: 3.08 seconds (31 edges)
+- Relationship 5: 116.64 seconds (14,308 edges, 685.7 MiB)
+- Relationship 6 (truncated to around 3 million) around 3 minutes 20 seconds    
+- Relationship 7 created in 19.62 seconds. (32 milion edges, 4GB)   
+- Relationship 8 created in 31.68 seconds. (1.3 milion edges)  
+- Relationship 9 created in 118.00 seconds. (6 milion edges)
+- Relationship 10 created in 134.50 seconds. (60k edges)
+
 ## Implementation
 
-## Relationship creation time
-Relationship 1: 50.75 seconds (25,741 edges, 987.51 MiB)
-Relationship 2: 12.85 seconds (2,561 edges, 735.38 MiB)
-Relationship 3: 9.10 seconds (413 edges)
-Relationship 4: 3.08 seconds (31 edges)
-Relationship 5: 116.64 seconds (14,308 edges, 685.7 MiB)
-Relationship 6 (truncated to around 3 million) around 3 minutes 20 seconds    
-Relationship 7 created in 19.62 seconds. (32 milion edges, 4GB)   
-Relationship 8 created in 31.68 seconds. (1.3 milion edges)  
-Relationship 9 created in 118.00 seconds. (6 milion edges)
-Relationship 10 created in 134.50 seconds. (60k edges)
+The first four relationships were implemented in a similar manner.
+
+1. Indexing and Spatial Filtering:
+We first created essential indexes (including point indexes) on relevant nodes to facilitate faster lookups.
+We then optimized queries to identify candidate nodes for relationship creation. This involved shrinking the search space as much as possible.
+For example, in the first relationship, we only retrieved pairs where the city center was located within the bounding box of the corresponding commune. This significantly reduced the number of unnecessary comparisons.
+
+2. Analyzing and Optimizing Queries:
+We initially used a simple query that directly matched  City and Commune nodes:
+   ```
+      MATCH (city:City), (commune:Commune)
+   ```
+   However, this resulted in a Cartesian product, leading to a large number of comparisons.
+   To address this, we used the EXPLAIN command to analyze the query plan and identify potential bottlenecks. Based on the analysis, we implemented a more optimized approach:
+   ```
+   MATCH (commune:Commune) WITH commune.lower_left_corner as llc, commune.upper_right_corner as urc, commune 
+   MATCH (city:City)  
+   WHERE point.withinbbox(city.center, llc, urc) 
+   RETURN city.id AS city_id, city.center.x AS city_x,
+   ```
+3. CSV for Temporary Storage and Relationship Creation
+
+   The filtered data from the optimized query was saved to a temporary CSV file.
+   This data then served as a source for creating relationships between the corresponding nodes identified in the CSV.
+
+4. Cleanup
+
+   Finally, we cleaned up by deleting the temporary indexes created for efficient execution.
+   The first four relationships were implemented analogously. First we created necessary indexes and point indexes. Then we obtained the candidate nodes for creating relationships, ooptimiizng the query and srinking the search space as much as we can. For example, in first relationship we returned only pairs with communes and cities within bounding boxes of these communes.
+
+## Examples of implemented relationships to be detected
+### Relationship 1 - Cities which are within commune boundaries
+![alt text](imgs/rel_1_cities_in_communes.png)
+
+### Relationship 2 - Communes which are within powiat boundaries
+![alt text](imgs/rel_2_communes_to_powiats.png)
+
+### Relationship 3 - Powiats which are within voivodship boundaries
+![alt text](imgs/rel_3_powiats_to_voivodships.png)
+
+### Relationship 4 - Voivodship which are within country boundaries
+![alt text](imgs/rel_4_voivodships_to_countries.png)
+
+### Relationship 5 - Neighbouring (adjacent) communes
+![alt text](imgs/rel_5_adjacent_communes.png)
+
+Gmina Biskupice borders with only 3 other communes, which was correctly detected by our system, and presented in the below screenshot:
+![alt text](imgs/rel_5_adjacent_communes_2.png)
+Gmina miejsko-wiejska Pisz (the Pisz urban-rural commune) borders the following communes: Rozogi, Ruciane-Nida, Mikołajki, Orzysz, Biała Piska, and also Kolno, Łyse, and Turośl in the Podlaskie Voivodeship. Which was correctly detected by our system, and presented in the below screenshot:
+
+![alt text](imgs/rel_5_pisz.png)
+
+### Relationship 6 - All neighbouring buildings not further than 500 meters apart;
+![alt text](imgs/building_connection.png)  
+
+### Relationship 7 - All neighbouring trees not further than 50 meters apart
+![alt text](imgs/rel_7_trees.png)
+
+### Relationship 8 - Trees which are not further than 20 meters from a road
+![alt text](imgs/rel_8_road_trees.png)
+
+### Relationship 9 - Roads which are connected through nodes; attributes
+![alt text](imgs/rel_9_connected_roads.png)
+![alt text](imgs/rel_9_connected_roads_2.png)
+
+### Relationship 10 - Railways which cross roads; attributes:
+![alt text](imgs/rel_10_railway_road_proposed.png)
 
 # Time it took for each milestone  
 Milestone 1: Choice of technologies, model & definitions - 6 hours  
 Milestone 2: Data model & environment design - 6 hours  
 Milestone 3: Data import - 30 hours  
 Milestone 4: Relationship detection - 75 hours
- 
-Optymalizacjaaa (query plan - EXPLAIN)
-przed:
-```
-MATCH (city:City), (commune:Commune)
-    WHERE point.withinbbox(city.center, commune.lower_left_corner, commune.upper_right_corner)
-    RETURN city.id AS city_id, city.center.x AS city_x, city.center.y AS city_y, commune.id AS commune_id, commune.wkt AS commune_wkt
-```
-po:
-```
-MATCH (commune:Commune) WITH  commune.lower_left_corner as llc, commune.upper_right_corner as dupa, commune
-MATCH (city:City) 
-    WHERE point.withinbbox(city.center, llc, dupa)
-    RETURN city.id AS city_id, city.center.x AS city_x, city.center.y AS city_y, commune.id AS commune_id, commune.wkt AS commune_wkt
-```
-![alt text](imgs/rel_1_cities_in_communes.png)
-![alt text](imgs/rel_2_communes_to_powiats.png)
-![alt text](imgs/rel_3_powiats_to_voivodships.png)
-![alt text](imgs/rel_4_voivodships_to_countries.png)
-![alt text](imgs/rel_5_adjacent_communes.png)
-![alt text](imgs/rel_5_adjacent_communes_2.png)
-![alt text](imgs/building_connection.png)  
-![alt text](imgs/rel_7_trees.png)
-![alt text](imgs/rel_8_road_trees.png)  
-![alt text](imgs/rel_9_connected_roads.png)
-![alt text](imgs/rel_9_connected_roads_2.png)
-![alt text](imgs/rel_10_railway_road_proposed.png)
-Gmina miejsko-wiejska Pisz graniczy z gminami: Rozogi, Ruciane-Nida, Mikołajki, Orzysz, Biała Piska oraz Kolno, Łyse, Turośl w województwie podlaskim.  
-
-![alt text](imgs/rel_5_pisz.png)
 
 # Resources
 1. https://memgraph.com/docs/data-migration/best-practices  
