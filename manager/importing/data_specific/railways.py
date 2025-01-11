@@ -28,6 +28,3 @@ def create_railways_input_query(path):
             lower_left_corner: point({{x: toFloat(row.minx), y: toFloat(row.miny)}}),
             upper_right_corner: point({{x: toFloat(row.maxx), y: toFloat(row.maxy)}})
         }})"""
-
-def create_railway_label_index_query():
-    return "CREATE INDEX ON :Railway"

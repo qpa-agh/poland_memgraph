@@ -11,6 +11,7 @@ import shutil
 import csv
 from typing import Union
 
+from settings import get_clear_preprocessed_value
 from utils.parallelization import execute_with_pool
 from database.communication import (
     execute_query,
@@ -18,6 +19,12 @@ from database.communication import (
     execute_query_to_csv_parallelized,
 )
 
+def clear_preprocessed_check(output_directory):
+    if get_clear_preprocessed_value() and os.path.exists(output_directory):
+        shutil.rmtree(output_directory)
+        if os.path.exists(output_directory):
+            os.rmdir(output_directory)
+    
 
 def is_within(point: Point, line: Union[MultiLineString, LineString]) -> bool:
     if isinstance(line, MultiLineString):
@@ -43,9 +50,6 @@ def create_relationship_1():
     """
     Cities which are within commune boundaries
     """
-    execute_query("CREATE POINT INDEX ON :City(center)")
-    execute_query("CREATE INDEX ON :City(id)")
-    execute_query("CREATE INDEX ON :Commune(id)")
     query = """
     MATCH (commune:Commune) 
     WITH  commune.lower_left_corner as llc, commune.upper_right_corner as urc, commune
@@ -54,30 +58,50 @@ def create_relationship_1():
     RETURN city.id AS city_id, city.center.x AS city_x, city.center.y AS city_y, commune.id AS commune_id, commune.wkt AS commune_wkt
     """
     headers = ["city_id", "commune_id"]
-    output_file = "/data/city_commune_data.csv"
-    execute_query_to_csv(
-        query, headers, output_file, modifier_function=is_point_within_border
-    )
+    output_directory = "/data/city_commune_data"
+    clear_preprocessed_check(output_directory)
+    
+    if not os.path.exists(output_directory):
+        os.makedirs(output_directory, exist_ok=True)
+        execute_query("CREATE POINT INDEX ON :City(center)")
+        execute_query("CREATE INDEX ON :Commune")
+        execute_query_to_csv_parallelized(
+            query, headers, output_directory, modifier_function=is_point_within_border, chunk_size=2000
+        )
 
-    create_relationships_query = f"""
-    LOAD CSV FROM '{output_file}' WITH HEADER AS row
-    MATCH (city:City {{id: toInteger(row.city_id)}}), (commune:Commune {{id: toInteger(row.commune_id)}})
-    CREATE (city)-[:LOCATED_IN]->(commune)
-    """
-    execute_query(create_relationships_query)
-    execute_query("DROP POINT INDEX ON :City(center)")
+        execute_query("DROP POINT INDEX ON :City(center)")
+        execute_query("DROP INDEX ON :Commune")
+        
+
+    create_relationships_query = lambda path: f"""
+        LOAD CSV FROM '{path}' WITH HEADER AS row
+        MATCH (city:City {{id: toInteger(row.city_id)}}), (commune:Commune {{id: toInteger(row.commune_id)}})
+        CREATE (city)-[:LOCATED_IN]->(commune)
+        """
+    
+    city_commune_connetions_queries = [
+        create_relationships_query(
+            os.path.join(output_directory, file.name)
+        )
+        for file in Path(output_directory).glob("*.csv")
+    ]
+
+    execute_query("CREATE INDEX ON :City(id)")
+    execute_query("CREATE INDEX ON :Commune(id)")
+    
+    execute_with_pool(
+        execute_query, city_commune_connetions_queries, max_processes=10
+    )
+    
     execute_query("DROP INDEX ON :City(id)")
     execute_query("DROP INDEX ON :Commune(id)")
+    execute_query("FREE MEMORY")
 
 
 def create_relationship_2():
     """
     Communes which are within powiat boundaries
     """
-    execute_query("CREATE POINT INDEX ON :Commune(center)")
-    execute_query("CREATE INDEX ON :Powiat(id)")
-    execute_query("CREATE INDEX ON :Commune(id)")
-
     query = """
     MATCH (powiat:Powiat) 
     WITH  powiat.lower_left_corner as llc, powiat.upper_right_corner as urc, powiat
@@ -86,30 +110,52 @@ def create_relationship_2():
     RETURN commune.id AS commune_id, commune.center.x AS commune_x, commune.center.y AS commune_y, powiat.id AS powiat_id, powiat.wkt AS powiat_wkt
     """
     headers = ["commune_id", "powiat_id"]
-    output_file = "/data/commune_powiat_data.csv"
-    execute_query_to_csv(
-        query, headers, output_file, modifier_function=is_point_within_border
+    output_directory = "/data/commune_powiat_data"
+    clear_preprocessed_check(output_directory)
+
+    if not os.path.exists(output_directory):
+        os.makedirs(output_directory, exist_ok=True)
+        execute_query("CREATE POINT INDEX ON :Commune(center)")
+        execute_query("CREATE INDEX ON :Powiat")
+
+        execute_query_to_csv_parallelized(
+            query, headers, output_directory, modifier_function=is_point_within_border, chunk_size=1000
+        )
+
+        execute_query("DROP POINT INDEX ON :Commune(center)")
+        execute_query("DROP INDEX ON :Powiat")
+
+        
+    create_relationships_query = lambda path: f"""
+        LOAD CSV FROM '{path}' WITH HEADER AS row
+        MATCH (commune:Commune {{id: toInteger(row.commune_id)}}), (powiat:Powiat {{id: toInteger(row.powiat_id)}})
+        CREATE (commune)-[:LOCATED_IN]->(powiat)
+        """
+        
+    commune_powiat_connetions_queries = [
+        create_relationships_query(
+            os.path.join(output_directory, file.name)
+        )
+        for file in Path(output_directory).glob("*.csv")
+    ]
+            
+    execute_query("CREATE INDEX ON :Powiat(id)")
+    execute_query("CREATE INDEX ON :Commune(id)")
+    
+    execute_with_pool(
+        execute_query, commune_powiat_connetions_queries, max_processes=10
     )
 
-    create_relationships_query = f"""
-    LOAD CSV FROM '{output_file}' WITH HEADER AS row
-    MATCH (commune:Commune {{id: toInteger(row.commune_id)}}), (powiat:Powiat {{id: toInteger(row.powiat_id)}})
-    CREATE (commune)-[:LOCATED_IN]->(powiat)
-    """
-    execute_query(create_relationships_query)
-
-    execute_query("DROP POINT INDEX ON :Commune(center)")
     execute_query("DROP INDEX ON :Powiat(id)")
     execute_query("DROP INDEX ON :Commune(id)")
+    execute_query("FREE MEMORY")
 
 
 def create_relationship_3():
     """
     Powiats which are within voivodship boundaries
     """
-    execute_query("CREATE POINT INDEX ON :Powiat(center)")
-    execute_query("CREATE INDEX ON :Powiat(id)")
-    execute_query("CREATE INDEX ON :Voivodship(id)")
+
     query = """
     MATCH (voivodship:Voivodship) 
     WITH  voivodship.lower_left_corner as llc, voivodship.upper_right_corner as urc, voivodship
@@ -118,29 +164,43 @@ def create_relationship_3():
     RETURN powiat.id AS powiat_id, powiat.center.x AS powiat_x, powiat.center.y AS powiat_y, voivodship.id AS voivodship_id, voivodship.wkt AS voivodship_wkt
     """
     headers = ["powiat_id", "voivodship_id"]
-    output_file = "/data/powiat_voivodship_data.csv"
-    execute_query_to_csv(
-        query, headers, output_file, modifier_function=is_point_within_border
-    )
-
+    output_directory = "/data/powiat_voivodship_data"
+    output_file = os.path.join(output_directory, 'powiat_voivodship_data.csv')
+    clear_preprocessed_check(output_directory)
+    
+    if not os.path.exists(output_directory):
+        os.makedirs(output_directory, exist_ok=True)
+        execute_query("CREATE POINT INDEX ON :Powiat(center)")
+        execute_query("CREATE INDEX ON :Voivodship")
+        
+        execute_query_to_csv(
+            query, headers, output_file, modifier_function=is_point_within_border
+        )
+        
+        execute_query("DROP POINT INDEX ON :Powiat(center)")
+        execute_query("DROP INDEX ON :Voivodship")
+        
     create_relationships_query = f"""
-    LOAD CSV FROM '{output_file}' WITH HEADER AS row
-    MATCH (powiat:Powiat {{id: toInteger(row.powiat_id)}}), (voivodship:Voivodship {{id: toInteger(row.voivodship_id)}})
-    CREATE (powiat)-[:LOCATED_IN]->(voivodship)
-    """
+        LOAD CSV FROM '{output_file}' WITH HEADER AS row
+        MATCH (powiat:Powiat {{id: toInteger(row.powiat_id)}}), (voivodship:Voivodship {{id: toInteger(row.voivodship_id)}})
+        CREATE (powiat)-[:LOCATED_IN]->(voivodship)
+        """
+        
+    execute_query("CREATE INDEX ON :Powiat(id)")
+    execute_query("CREATE INDEX ON :Voivodship(id)")
+
     execute_query(create_relationships_query)
-    execute_query("DROP POINT INDEX ON :Powiat(center)")
+    
     execute_query("DROP INDEX ON :Powiat(id)")
     execute_query("DROP INDEX ON :Voivodship(id)")
+    execute_query("FREE MEMORY")
 
 
 def create_relationship_4():
     """
     Voivodship which are within country boundaries
     """
-    execute_query("CREATE POINT INDEX ON :Voivodship(center)")
-    execute_query("CREATE INDEX ON :Voivodship(id)")
-    execute_query("CREATE INDEX ON :Country(id)")
+
     query = """
     MATCH (country:Country) 
     WITH  country.lower_left_corner as llc, country.upper_right_corner as urc, country
@@ -149,20 +209,36 @@ def create_relationship_4():
     RETURN voivodship.id AS voivodship_id, voivodship.center.x AS voivodship_x, voivodship.center.y AS voivodship_y, country.id AS country_id, country.wkt AS country_wkt
     """
     headers = ["voivodship_id", "country_id"]
-    output_file = "/data/voivodship_country_data.csv"
-    execute_query_to_csv(
-        query, headers, output_file, modifier_function=is_point_within_border
-    )
+    output_directory = "/data/voivodship_country_data"
+    output_file = os.path.join(output_directory, 'voivodship_country_data.csv')
+    clear_preprocessed_check(output_directory)
+            
+    if not os.path.exists(output_directory):
+        os.makedirs(output_directory, exist_ok=True)
+        execute_query("CREATE POINT INDEX ON :Voivodship(center)")
+        execute_query("CREATE INDEX ON :Country")
+        
+        execute_query_to_csv(
+            query, headers, output_file, modifier_function=is_point_within_border
+        )
+        
+        execute_query("DROP INDEX ON :Country")
+        execute_query("DROP POINT INDEX ON :Voivodship(center)")
 
     create_relationships_query = f"""
-    LOAD CSV FROM '{output_file}' WITH HEADER AS row
-    MATCH (voivodship:Voivodship {{id: toInteger(row.voivodship_id)}}), (country:Country {{id: toInteger(row.country_id)}})
-    CREATE (voivodship)-[:LOCATED_IN]->(country)
-    """
+        LOAD CSV FROM '{output_file}' WITH HEADER AS row
+        MATCH (voivodship:Voivodship {{id: toInteger(row.voivodship_id)}}), (country:Country {{id: toInteger(row.country_id)}})
+        CREATE (voivodship)-[:LOCATED_IN]->(country)
+        """
+        
+    execute_query("CREATE INDEX ON :Voivodship(id)")
+    execute_query("CREATE INDEX ON :Country(id)")
+    
     execute_query(create_relationships_query)
-    execute_query("DROP POINT INDEX ON :Voivodship(center)")
+    
     execute_query("DROP INDEX ON :Voivodship(id)")
     execute_query("DROP INDEX ON :Country(id)")
+    execute_query("FREE MEMORY")
 
 
 def are_adjacent(data):
@@ -186,8 +262,7 @@ def create_relationship_5():
     """
     Neighbouring (adjacent) communes
     """
-    execute_query("CREATE POINT INDEX ON :Commune(center)")
-    execute_query("CREATE INDEX ON :Commune(id)")
+
     query = """
         MATCH (c_max:Commune)
         WITH MAX(point.distance(c_max.upper_right_corner, c_max.lower_left_corner)) as max_dia
@@ -197,17 +272,41 @@ def create_relationship_5():
         c2.id AS commune2_id, c2.wkt AS commune2_wkt
     """
     headers = ["commune1_id", "commune2_id"]
-    output_file = "/data/adjacent_communes.csv"
-    execute_query_to_csv(query, headers, output_file, modifier_function=are_adjacent)
-    create_relationships_query = f"""
-    LOAD CSV FROM '{output_file}' WITH HEADER AS row
-    MATCH (c1:Commune {{id: toInteger(row.commune1_id)}}), (c2:Commune {{id: toInteger(row.commune2_id)}})
-    CREATE (c1)-[:IS_ADJACENT]->(c2), (c2)-[:IS_ADJACENT]->(c1)
-    """
-    execute_query(create_relationships_query)
+    output_directory = "/data/adjacent_communes"
+    clear_preprocessed_check(output_directory)
+    
+    if not os.path.exists(output_directory):
+        os.makedirs(output_directory, exist_ok=True)
+        execute_query("CREATE POINT INDEX ON :Commune(center)")
+        execute_query("CREATE INDEX ON :Commune")
+        
+        execute_query_to_csv_parallelized(
+            query, headers, output_directory, modifier_function=are_adjacent, chunk_size=1000
+        )
 
-    execute_query("DROP POINT INDEX ON :Commune(center)")
+        execute_query("DROP POINT INDEX ON :Commune(center)")
+        execute_query("DROP INDEX ON :Commune")
+        
+    create_relationships_query = lambda path: f"""
+        LOAD CSV FROM '{path}' WITH HEADER AS row
+        MATCH (c1:Commune {{id: toInteger(row.commune1_id)}}), (c2:Commune {{id: toInteger(row.commune2_id)}})
+        CREATE (c1)-[:IS_ADJACENT]->(c2), (c2)-[:IS_ADJACENT]->(c1)
+        """
+        
+    adjcent_communes_connetions_queries = [
+        create_relationships_query(
+            os.path.join(output_directory, file.name)
+        )
+        for file in Path(output_directory).glob("*.csv")
+    ]
+    execute_query("CREATE INDEX ON :Commune(id)")
+
+    execute_with_pool(
+        execute_query, adjcent_communes_connetions_queries, max_processes=10
+    )
+    
     execute_query("DROP INDEX ON :Commune(id)")
+    execute_query("FREE MEMORY")
 
 
 def check_proximity(data, distance=500):
@@ -249,12 +348,10 @@ def create_relationship_6():
     headers = ["id1", "id2", "actual_distance"]
 
     output_directory = "/data/buildings_distance"
-    # if clear_precomputed:
-    #     shutil.rmtree(output_directory)
-    #     if os.path.exists(output_directory):
-    #         os.rmdir(output_directory)
+    clear_preprocessed_check(output_directory)
 
     if not os.path.exists(output_directory):
+        os.makedirs(output_directory, exist_ok=True)
         execute_query("CREATE INDEX ON :Building")
         execute_query("CREATE POINT INDEX ON :Building(center)")
 
@@ -299,6 +396,7 @@ def create_relationship_7():
     )
     execute_query("DROP POINT INDEX ON :Tree(geometry)")
     execute_query("DROP INDEX ON :Tree")
+    execute_query("FREE MEMORY")
 
 
 def check_trees_for_distance(data, distance=20):
@@ -335,15 +433,10 @@ def create_relationship_8():
     headers = ["road_id", "tree_id"]
 
     output_directory = "/data/trees_roads"
-    clear_precomputed = False
-    if clear_precomputed:
-        shutil.rmtree(output_directory)
-        if os.path.exists(output_directory):
-            os.rmdir(output_directory)
-
-    execute_query("CREATE INDEX ON :Tree(id)")
+    clear_preprocessed_check(output_directory)
     
     if not os.path.exists(output_directory):
+        os.makedirs(output_directory, exist_ok=True)
         execute_query("CREATE POINT INDEX ON :Tree(geometry)")
         execute_query("CREATE INDEX ON :Road")
 
@@ -359,6 +452,7 @@ def create_relationship_8():
         execute_query("DROP POINT INDEX ON :Tree(geometry)")
         execute_query("DROP INDEX ON :Road")
 
+    execute_query("CREATE INDEX ON :Tree(id)")
     execute_query("CREATE INDEX ON :Road(id)")
 
     road_tree_connetions_queries = [
@@ -481,14 +575,10 @@ def create_relationship_10():
     headers = ["railway_id", "road_id", "angle"]
 
     output_directory = "/data/railway_road_intersections"
-    clear_precomputed = False
-    if clear_precomputed:
-        shutil.rmtree(output_directory)
-        if os.path.exists(output_directory):
-            os.rmdir(output_directory)
-
+    clear_preprocessed_check(output_directory)
 
     if not os.path.exists(output_directory):
+        os.makedirs(output_directory, exist_ok=True)
         execute_query("CREATE POINT INDEX ON :Road(upper_right_corner)")
         execute_query("CREATE INDEX ON :Railway")
 
@@ -498,7 +588,7 @@ def create_relationship_10():
             output_directory,
             modifier_function=check_railroad_road_intersection,
             expand_output_list=True,
-            chunk_size=2000,
+            chunk_size=1000,
         )
         
         execute_query("DROP POINT INDEX ON :Road(upper_right_corner)")

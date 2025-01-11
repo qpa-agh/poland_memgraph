@@ -32,5 +32,3 @@ def create_cities_input_query(path):
             upper_right_corner: point({{x: toFloat(row.maxx), y: toFloat(row.maxy)}})
         }})"""
 
-def create_city_label_index_query():
-    return "CREATE INDEX ON :City"

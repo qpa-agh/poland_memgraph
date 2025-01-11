@@ -1,8 +1,12 @@
 import time
 from importing.importing_data import DATA_LOADERS
+from database.communication import execute_query
+from settings import toggle_clear_preprocessed
 from relationships.relationship_creation import RELATIONSHIP_CREATORS
 import signal
 import sys
+import os
+import shutil
 
 def signal_handler(sig, frame):
     print('You pressed Ctrl+C!')
@@ -11,11 +15,15 @@ def signal_handler(sig, frame):
 signal.signal(signal.SIGINT, signal_handler)
 signal.signal(signal.SIGTERM, signal_handler)
 
-time.sleep(1)
+time.sleep(0.5)
 IMPORT_COMMAND = "import"
 CREATE_RELATIONSHIP_COMMAND = "cr"
 EXIT_COMMAND = "exit"
-
+CLEAR_DATABASE_COMMAND = 'delete_all'
+RUN_QUERY_COMMAND = 'query'
+TOGGLE_PREPROCESSED_DATA_CLEANING = 'clear_preprocessed'
+REMOVE_COMMAND = "srm"
+HELP_COMMAND = 'help'
 
 def measure_time(func, *args, **kwargs):
     start_time = time.time()
@@ -92,10 +100,9 @@ def create_relationships(arguments):
     print(
         f"Total time taken: {sum([duration for _, duration in report]):.2f} seconds.\n"
     )
-
-def run_cli():
-    print('=============================================================================')
-    print("Welcome to CLI Tool!\nEnter a command. Type 'exit' to quit.")
+    
+def print_help():
+    print(f"All files should be in csv format and be located in \data directory")
     print(
         f"Usage with automatic file detection: \n\t{IMPORT_COMMAND} auto <data_type1> [data_type2 ...] or '{IMPORT_COMMAND} auto all'"
     )
@@ -103,9 +110,23 @@ def run_cli():
         f"Usage with providing file names: \n\t{IMPORT_COMMAND} <data_type1> <file_name1>  [data_type2 file_name2...]"
     )
     print(f"<data_type> = [{', '.join(DATA_LOADERS.keys())}]")
-    print(f"All files should be in csv format and be located in \data directory")
+    print(f"")
     print(f"To create relationships use '{CREATE_RELATIONSHIP_COMMAND}'")
     print(f"Usage: {CREATE_RELATIONSHIP_COMMAND} <relationship_no1> [relationship_no2 ...] or '{CREATE_RELATIONSHIP_COMMAND} all'")
+    print(f"")
+    print(f"Use command '{CLEAR_DATABASE_COMMAND}' to clear all data in the database")
+    print(f"Use command '{RUN_QUERY_COMMAND} <query>' to run a custom query")
+    print(f"""Use command '{TOGGLE_PREPROCESSED_DATA_CLEANING}' to toggle between clearing modes. 
+          If clearing mode is off then already processed data will not be recalculated.
+          Default is off.""")
+
+def run_cli():
+    print('=============================================================================')
+    print("Welcome to CLI Tool!\nEnter a command. Type 'exit' to quit.")
+    print(f"All files should be in csv format and be located in \data directory")
+    print(f"Enter '{HELP_COMMAND}' to see commands")
+   
+    
     while True:
         try:
             command = input("> ").strip()
@@ -131,14 +152,29 @@ def run_cli():
                     print(
                         f"Usage: {CREATE_RELATIONSHIP_COMMAND} <relationship_no1> [relationship_no2 ...] or '{CREATE_RELATIONSHIP_COMMAND} all'"
                     )
+            elif command.startswith(RUN_QUERY_COMMAND):
+                query = command[len(RUN_QUERY_COMMAND):]
+                execute_query(query)
+            elif command.startswith(CLEAR_DATABASE_COMMAND):
+                execute_query('MATCH (n) DETACH DELETE n')
+            elif command.startswith(TOGGLE_PREPROCESSED_DATA_CLEANING):
+                toggle_clear_preprocessed()
+            elif command.startswith(REMOVE_COMMAND):
+                parts = command.split()
+                if parts[1] == 'dir':
+                    dir = os.path.join('/data', parts[2])
+                    shutil.rmtree(dir)
+                    if os.path.exists(dir):
+                        os.rmdir(dir)
+                elif parts[1] == 'file':
+                    file = os.path.join('/data', parts[2])
+                    os.remove(file)
+            elif command.startswith(HELP_COMMAND):
+                print_help()
             else:
-                print(
-                    f"""Unknown command. 
-                    Available commands: 
-                        {IMPORT_COMMAND} <data_type1> [data_type2 ...] or {IMPORT_COMMAND} all
-                        {CREATE_RELATIONSHIP_COMMAND} <relationship_no1> [relationship_no2 ...] or {CREATE_RELATIONSHIP_COMMAND} all
-                        exit"""
-                )
+                print(f"Unknown command.")
+                print(f"Enter '{HELP_COMMAND}' to see commands")
+                
         except KeyboardInterrupt:
             print("\nExiting the CLI tool.")
             break

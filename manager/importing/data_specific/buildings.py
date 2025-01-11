@@ -31,12 +31,3 @@ def create_buildings_input_query(path):
             center: point({{x: toFloat(row.x), y: toFloat(row.y)}}) ,
             radius: toFloat(row.radius)
         }})"""
-
-def create_building_label_index_query():
-    return "CREATE INDEX ON :Building"
-
-def create_building_id_index_query():
-    return "CREATE INDEX ON :Building(id)"
-
-def create_building_center_point_index_query():
-    return "CREATE POINT INDEX ON :Building(center)"

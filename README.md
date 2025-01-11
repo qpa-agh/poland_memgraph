@@ -219,32 +219,32 @@ For memgraph-lab to visualise points on the map, nodes have to have properties "
 This does not include preprocessing and fragmenting dataframes
 ```
 Import Report:
-Buildings data imported in 26.43 seconds.
-Cities data imported in 3.68 seconds.
-Communes data imported in 1.70 seconds.
-Countries data imported in 0.25 seconds.
-Powiats data imported in 0.85 seconds.
-Railways data imported in 1.38 seconds.
-Roads data imported in 16.80 seconds.
-Trees data imported in 3.55 seconds.
-Voivodships data imported in 0.36 seconds.
-Total time taken: 55.00 seconds.
+Buildings data imported in 28.34 seconds.
+Cities data imported in 3.86 seconds.
+Communes data imported in 1.86 seconds.
+Countries data imported in 0.40 seconds.
+Powiats data imported in 1.01 seconds.
+Railways data imported in 1.97 seconds.
+Roads data imported in 59.16 seconds.
+Trees data imported in 3.81 seconds.
+Voivodships data imported in 0.51 seconds.
+Total time taken: 100.90 seconds.
 ```
 
 
 ## Import report (entire pipeline)
 ```
 Import Report:
-Buildings data imported in 589.91 seconds.
-Cities data imported in 17.28 seconds.
-Communes data imported in 7.64 seconds.
-Countries data imported in 0.57 seconds.
-Powiats data imported in 3.54 seconds.
-Railways data imported in 6.54 seconds.
-Roads data imported in 402.41 seconds.
-Trees data imported in 13.97 seconds.
-Voivodships data imported in 1.15 seconds.
-Total time taken: 1043.01 seconds.
+Buildings data imported in 693.86 seconds.
+Cities data imported in 17.86 seconds.
+Communes data imported in 7.97 seconds.
+Countries data imported in 0.76 seconds.
+Powiats data imported in 3.81 seconds.
+Railways data imported in 7.93 seconds.
+Roads data imported in 625.83 seconds.
+Trees data imported in 14.44 seconds.
+Voivodships data imported in 1.37 seconds.
+Total time taken: 1373.82 seconds.
 ```
 
 ## Results
@@ -271,16 +271,26 @@ Our command-line interface (CLI) simplifies relationship creation. The process i
 
 ## Relationship Creation Performance
 The following list summarizes the time taken to create various relationships, along with the resulting number of edges and their approximate size:
-- Relationship 1: 50.75 seconds (25,741 edges, 987.51 MiB)
-- Relationship 2: 12.85 seconds (2,561 edges, 735.38 MiB)
-- Relationship 3: 9.10 seconds (413 edges)
-- Relationship 4: 3.08 seconds (31 edges)
-- Relationship 5: 116.64 seconds (14,308 edges, 685.7 MiB)
-- Relationship 6 (truncated to around 3 million) around 3 minutes 20 seconds    
-- Relationship 7 created in 19.62 seconds. (32 milion edges, 4GB)   
-- Relationship 8 created in 31.68 seconds. (1.3 milion edges)  
-- Relationship 9 created in 118.00 seconds. (6 milion edges)
-- Relationship 10 created in 134.50 seconds. (60k edges)
+- Relationship 1 created in 40.95 seconds. (25,741 edges)
+- Relationship 2 created in 7.86 seconds. (2,561 edges)
+- Relationship 3 created in 8.72 seconds. (413 edges)
+- Relationship 4 created in 3.89 seconds. (31 edges)
+- Relationship 5 created in 50.69 seconds. (14,308 edges)
+- Relationship 6 created in 289.14 seconds. (truncated to around 3 million, all neighbours calculate for around 10200 buidlings)
+- Relationship 7 created in 22.56 seconds. (32 milion edges, 4GB)
+- Relationship 8 created in 57.73 seconds. (1.3 milion edges) 
+- Relationship 9 created in 173.03 seconds. (6 milion edges)
+- Relationship 10 created in 162.63 seconds. (60k edges)
+Total time taken: 817.19 seconds.  
+As more and more swap memory must be used the performance gets worse.  
+
+## Total memory usage
+Peak memory usage was 45 GB RAM and swap  
+After everything was calculated 30 GB RAM and swap  
+Snapshot size is 20.80 GiB
+
+## Database Schema Graph
+![alt text](imgs/graph_schema.png)
 
 ## Implementation
 
@@ -497,11 +507,17 @@ docker compose run --rm manager
    ```
    ![alt text](imgs/tutorial_jasiniec.png)
 
+# Computer specifications
+
+Cpu:	Intel(R) Core(TM) i5-14600KF  
+Memory:  32.0 GB 6800 MT/s  
+Hard drive: Lexar SSD NM790 2TB  
+  
 # Time it took for each milestone  
 Milestone 1: Choice of technologies, model & definitions - 6 hours  
 Milestone 2: Data model & environment design - 6 hours  
 Milestone 3: Data import - 30 hours  
-Milestone 4: Relationship detection - 80 hours
+Milestone 4: Relationship detection - 85 hours
 
 # Resources
 1. https://memgraph.com/docs/data-migration/best-practices  

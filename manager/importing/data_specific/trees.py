@@ -28,8 +28,3 @@ def create_trees_input_query(path):
             geometry: point({{x: toFloat(row.x), y: toFloat(row.y)}}) 
         }})"""
 
-def create_tree_label_index_query():
-    return "CREATE INDEX ON :Tree"
-
-def create_tree_point_index_query():
-    return "CREATE POINT INDEX ON :Tree(geometry)"

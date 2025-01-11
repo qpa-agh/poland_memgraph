@@ -42,12 +42,6 @@ def create_roads_input_query(path):
             upper_right_corner: point({{x: toFloat(row.maxx), y: toFloat(row.maxy)}})
         }})"""
 
-def create_road_label_index_query():
-    return "CREATE INDEX ON :Road"
-
-def create_road_id_index_query():
-    return "CREATE INDEX ON :Road(id)"
-
 def preprocess_road_node_df(df):
     df_nodes = df[['id', 'nodes', 'coordinates']]
     df_nodes['road_id'] = df_nodes['id']
@@ -94,12 +88,6 @@ def create_road_node_road_connection_query(path):
         CREATE (n)-[:BELONGS_TO]->(r)
         """     
     
-def create_road_node_point_index_query():
-    return "CREATE POINT INDEX ON :RoadNode(geometry)"
-
-def create_road_node_id_index_query():
-    return "CREATE INDEX ON :RoadNode(id)"
-
 
 def preprocess_road_node_connections(df):
     df.fillna({'oneway': 'no'}, inplace=True)
