@@ -10,18 +10,28 @@ AUTH = ("testuser123", "t123")
 def run_with_database_client(func):
     with GraphDatabase.driver(URI, auth=AUTH) as client:
         client.verify_connectivity()
-        func(client)
+        result = func(client)
+    return result
 
+def get_query_results_list(query, record_transform_function):
+    with GraphDatabase.driver(URI, auth=AUTH) as client:
+        with client.session() as session:
+            result = session.run(query)
+            results = [record_transform_function(record) for record in result]
+    return results
 
-def execute_query(query):
+def execute_query(query, return_full=False, free_memory=True):
     try:
         with GraphDatabase.driver(URI, auth=AUTH) as client:
             with client.session() as session:
                 print("Running query:", query)
-                # session.run('STORAGE MODE IN_MEMORY_ANALYTICAL;')
                 result = session.run(query)
-                print(result.single())
-                session.run("FREE MEMORY")
+                if return_full:
+                    print(result.values())
+                else:
+                    print(result.single())
+                if free_memory:
+                    session.run("FREE MEMORY")
 
     except BaseException as e:
         print("Failed to execute transaction")
