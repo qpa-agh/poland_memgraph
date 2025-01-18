@@ -433,6 +433,30 @@ Under this optimal scenario, scaling to 17 million trees would result in:
 - Estimated Edges: 544 million edges (32 million * 17).
 - Estimated Memory Consumption: 68 GB of memory (4 GB * 17).
 
+# Milestone 5
+
+## Query 4
+For the purpose of this query neighbourhoods were calculated for every building in the bounding box of powiat wielicki.  
+There were 140 thousands of such buldings. This resulted in over 25milion relationships.
+Following visualsation is a part of a result of running a query 4 for buildings of type "house", max distance equal to 60m, minimal cluster size of 5.
+There were 243 such clusters, amounting to 6743 nodes. It took 3.5 seconds to compute this, from which selecting buildings took 40% of the time and computing the clusters antoher 40%.
+![alt text](imgs/example_house_clusters_60.png)
+To visualize this query, run in the memgreaph-lab the following query:
+```CYPHER
+MATCH p=(b1:Building {building:"house"})-[e:CLOSE_TO]-(b2:Building {building:"house"})
+WHERE e.distance <= 60
+WITH project(p) AS subgraph
+CALL nxalg.strongly_connected_components(subgraph) 
+YIELD components
+UNWIND components as c
+WITH c, subgraph
+WHERE size(c) >= 5
+WITH c, subgraph
+CALL graph_util.connect_nodes(subgraph, c)
+YIELD connections
+RETURN c, connections
+```
+
 # Guide on running visualization
 In one terminal run the docker compose to set up the environment:
 ```

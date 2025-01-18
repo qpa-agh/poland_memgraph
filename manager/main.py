@@ -191,7 +191,7 @@ def run_cli():
                 query = command[len(RUN_CUSTOM_QUERY_COMMAND):]
                 execute_query(query, return_full=True)
             elif command[:len(CLEAR_DATABASE_COMMAND)].lower() == CLEAR_DATABASE_COMMAND:
-                execute_query('MATCH (n) DETACH DELETE n')
+                execute_query('DROP GRAPH')
             elif command[:len(TOGGLE_PREPROCESSED_DATA_CLEANING)].lower() == TOGGLE_PREPROCESSED_DATA_CLEANING:
                 toggle_clear_preprocessed()
             elif command[:len(REMOVE_COMMAND)].lower() == REMOVE_COMMAND:

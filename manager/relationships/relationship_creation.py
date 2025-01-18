@@ -321,13 +321,27 @@ def check_proximity(data, distance=500):
 
     return None
 
+def check_proximity_multiple(data, distance=500):
+    id1, wkt1, ids, wkts = data
+
+    geom1 = wkt.loads(wkt1)
+    prepare(geom1)
+    
+    return_values = []
+    for id2, wkt2 in zip(ids, wkts):
+        geom2 = wkt.loads(wkt2)
+        actual_distance = geom1.distance(geom2)
+        if actual_distance <= distance:
+            return_values.append([id1, id2, actual_distance]) 
+
+    return None if len(return_values) == 0 else return_values
 
 # id1    id2 actual_distance
 def create_buildings_distance_connetions_query(path):
     return f"""
         LOAD CSV FROM '{path}' WITH HEADER AS row
         MATCH (startNode:Building {{id: toInteger(row.id1)}}), (endNode:Building {{id: toInteger(row.id2)}})
-        CREATE (startNode)-[:CLOSE_TO {{distance: toFloat(row.actual_distance)}}]->(endNode)
+        CREATE (startNode)-[:CLOSE_TO {{distance: toFloat(row.actual_distance)}}]->(endNode), (endNode)-[:CLOSE_TO {{distance: toFloat(row.actual_distance)}}]->(startNode)
     """
 
 
@@ -336,14 +350,20 @@ def create_relationship_6():
     All neighbouring buildings not further than 500 meters apart; attributes: distance (meters)
     """
     query = """
+        MATCH (wieliczka: Powiat{name:"powiat wielicki"})
+        WITH wieliczka.lower_left_corner as llc, wieliczka.upper_right_corner as urc
+        
         MATCH (t:Building)
-        WITH MAX(t.radius) as max_r
+        WHERE point.withinbbox(t.center, llc, urc)
+        WITH MAX(t.radius) as max_r, llc, urc
+        
         MATCH (t1:Building)
-        WITH t1, t1.center as p, (500 + max_r + t1.radius) as max_distance
+        WHERE point.withinbbox(t1.center, llc, urc)
+        WITH t1, t1.center as p, (500 + max_r + t1.radius) as max_distance, max_r
+        
         MATCH (t2:Building)
-        WHERE id(t1) <> id(t2) AND point.distance(t2.center, p) <= max_distance
+        WHERE id(t1) < id(t2) AND point.distance(t2.center, p) <= max_distance
         RETURN t1.id, t1.wkt, t2.id, t2.wkt
-        LIMIT 10000000
         """
     headers = ["id1", "id2", "actual_distance"]
 
@@ -390,8 +410,8 @@ def create_relationship_7():
                     MATCH (t1:Tree)
                     WITH t1, t1.geometry as p
                     MATCH (t2:Tree)
-                    WHERE id(t1) <> id(t2) AND point.distance(t2.geometry, p) <= 50
-                    CREATE (t1)-[r:CLOSE_TO {{distance: point.distance(p, t2.geometry)}}]->(t2)
+                    WHERE id(t1) < id(t2) AND point.distance(t2.geometry, p) <= 50
+                    CREATE (t1)-[:CLOSE_TO {{distance: point.distance(p, t2.geometry)}}]->(t2), (t2)-[:CLOSE_TO {{distance: point.distance(p, t2.geometry)}}]->(t1)
                   """
     )
     execute_query("DROP POINT INDEX ON :Tree(geometry)")
@@ -405,7 +425,7 @@ def check_trees_for_distance(data, distance=20):
     road_geom = wkt.loads(road_wkt)
 
     prepare(road_geom)
-    return_values = [(road_id, tree_id) for tree_id, tree in trees if road_geom.dwithin(tree, distance)]
+    return_values = [(road_id, tree_id, road_geom.distance(tree)) for tree_id, tree in trees if road_geom.dwithin(tree, distance)]
     
     return None if len(return_values) == 0 else return_values
 
@@ -414,7 +434,7 @@ def create_road_tree_connetions_query(path):
     return f"""
         LOAD CSV FROM '{path}' WITH HEADER AS row
         MATCH (road:Road {{id: toInteger(row.road_id)}}), (tree:Tree {{id: toInteger(row.tree_id)}})
-        CREATE (tree)-[:NEAR]->(road)
+        CREATE (tree)-[:CLOSE_TO {{distance: toFloat(row.distance)}}]->(road)
     """
 
 def create_relationship_8():
@@ -430,7 +450,7 @@ def create_relationship_8():
     RETURN road.id, road.wkt,  COLLECT(tree.id) as tree_ids, COLLECT(tree.geometry.x) as tree_xs, COLLECT(tree.geometry.y) as tree_ys
     """
     
-    headers = ["road_id", "tree_id"]
+    headers = ["road_id", "tree_id", "distance"]
 
     output_directory = "/data/trees_roads"
     clear_preprocessed_check(output_directory)

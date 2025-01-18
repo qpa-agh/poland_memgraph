@@ -5,7 +5,7 @@ services:
     ports:
       - "7687:7687"
       - "7444:7444"
-    command: ["--log-level=TRACE", "--memory-limit=50000", "--storage-mode=IN_MEMORY_ANALYTICAL", "--query-execution-timeout-sec=6000"]
+    command: ["--log-level=TRACE", "--memory-limit=72000", "--storage-mode=IN_MEMORY_ANALYTICAL", "--query-execution-timeout-sec=6000"]
     environment:
       - MEMGRAPH_USER=testuser123
       - MEMGRAPH_PASSWORD=t123

@@ -106,12 +106,42 @@ def run_query_3():
     execute_query("CREATE INDEX ON :Voivodship")
     data = get_query_results_list(query, adjacent_voivodships_transformation_function)       
     save_object_to_json(data, output_filepath)
+    
+def create_query_4(max_distance, building_type, min_count):
+    return f"""
+    MATCH p=(:Building {{building:"{building_type}"}})-[e:CLOSE_TO]-(:Building {{building:"{building_type}"}})
+    WHERE e.distance <= {max_distance}
+    WITH project(p) AS subgraph
+    CALL nxalg.strongly_connected_components(subgraph) 
+    YIELD components
+    UNWIND components as c
+    WITH c
+    WHERE size(c) >= {min_count}
+    RETURN  EXTRACT(n in c | n.id) as ids
+    """
 
-def run_query_4():
+def run_query_4(max_distance, building_type, min_count):
     """
         Clusters of buildings; parameters: max distance, building type, min count
     """
-    pass
+    query = create_query_4(max_distance, building_type, min_count)
+
+    def clusters_of_buidlings_transformation_function(record):
+        return record["ids"]
+
+    output_filename = "query4.json"
+    output_filepath = f"/data/{output_filename}"
+
+    execute_query("CREATE INDEX ON :Building")
+    execute_query("CREATE INDEX ON :Building(building)")
+    data = get_query_results_list(query, clusters_of_buidlings_transformation_function)       
+    result = {
+        "max_distance": max_distance, 
+        "building_type": building_type, 
+        "min_count": min_count,
+        "clusters": data
+    }
+    save_object_to_json(result, output_filepath)
 
 def run_query_5():
     """
