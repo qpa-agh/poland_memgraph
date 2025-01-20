@@ -531,6 +531,12 @@ docker compose run --rm manager
    ```
    ![alt text](imgs/tutorial_jasiniec.png)
 
+## Test scenario 3: Commune in Powiat in Voivodship
+```cypher
+Match e=(c1:Commune{name:"gmina Biskupice"})-[:LOCATED_IN]->(p:Powiat)-[:LOCATED_IN]->(v:Voivodship)-[:LOCATED_IN]->(c2:Country)
+Return e
+```
+
 # Computer specifications
 
 Cpu:	Intel(R) Core(TM) i5-14600KF  
