@@ -433,15 +433,18 @@ Under this optimal scenario, scaling to 17 million trees would result in:
 - Estimated Edges: 544 million edges (32 million * 17).
 - Estimated Memory Consumption: 68 GB of memory (4 GB * 17).
 
-# Milestone 5
+# Milestone 5: Query implementation
 
-## Query 4
-For the purpose of this query neighbourhoods were calculated for every building in the bounding box of powiat wielicki.  
-There were 140 thousands of such buldings. This resulted in over 25milion relationships.
-Following visualsation is a part of a result of running a query 4 for buildings of type "house", max distance equal to 60m, minimal cluster size of 5.
-There were 243 such clusters, amounting to 6743 nodes. It took 3.5 seconds to compute this, from which selecting buildings took 40% of the time and computing the clusters antoher 40%.
+
+## Chosen query details and visualisations 
+### Query 4
+For the purpose of this query neighbourhoods were calculated for every building in the bounding box of powiat wielicki.    
+There were 140 thousands of such buldings. This resulted in over 25 milion relationships.  
+
+Following visualsation is a part of a result of running a query 4 for buildings of type "house", max distance equal to 60m, minimal cluster size of 5.  
+There were 243 such clusters, amounting to 6743 nodes. It took 3.5 seconds to compute this, from which selecting buildings took 40% of the time and computing the clusters antoher 40%.  
 ![alt text](imgs/example_house_clusters_60.png)
-To visualize this query, run in the memgreaph-lab the following query:
+To visualize this query, run in the memgraph-lab the following query:
 ```CYPHER
 MATCH p=(b1:Building {building:"house"})-[e:CLOSE_TO]-(b2:Building {building:"house"})
 WHERE e.distance <= 60
@@ -457,6 +460,240 @@ YIELD connections
 RETURN c, connections
 ```
 
+### Query 6
+We prepared 2 variants, strict or lazy check.
+Strict check requires that all road segments are within given max_distance, and all of their segments are parallel (angles differ by maximum of max_angle) to the closest railway segment, and any segment cannot cross the railway.  
+Lazy check requires that at least one road segment is within given max_distance and is parallel (angles differ by maximum of max_angle) to the closest railway segment. Road can cross the railway.  
+
+Example roads parallel to a railway, lazy check, max_distance=200, max_angle=10 (58 roads)  
+![alt text](imgs/parallel_roads_railways_lazy.png)
+
+Example roads parallel to a railway, strict check, max_distance=200, max_angle=10 (17 roads)  
+![alt text](imgs/parallel_roads_railways_strict.png)
+To visualize use
+```CYPHER
+MATCH (railway:Railway{id: 23526100})
+WITH [
+            238863404,
+            293369614,
+            213956026,
+            1014623780,
+            185628095,
+            379126792,
+            293369612,
+            675724700,
+            168134558,
+            168134556,
+            1316002479,
+            178398127,
+            177705443,
+            737042512,
+            487583054,
+            279366959,
+            737042513,
+            29045466
+    ] as ids, railway
+MATCH (n:Road)
+WHERE n.id IN ids
+MATCH (n)<-[:BELONGS_TO]-(rn:RoadNode)
+WITH COLLECT(n) + collect(rn) + [railway] as nodes
+CALL graph_util.connect_nodes(nodes)
+YIELD connections
+RETURN nodes, connections
+```
+
+### Query 7
+
+Example of trees clusters with max distance of 3 and minimum cluster size of 10  
+![alt text](imgs/example_tree_clusters.png)  
+
+### Query 8
+Path from Czarnowiejska to Józefa Conrada.   
+It took 0.3 s to calculate.   
+![alt text](imgs/czarnowiejska_conrada.png)  
+
+Path from Czarnowiejska to Wawelska in Warsaw.  
+It took 7 minutes to calculate  
+![alt text](imgs/czarnowiejska_wawelska.png)  
+Having to use swap lowers performance greatly. First run of "Path from Czarnowiejska to Józefa Conrada" take 3.5 seconds, but every subsequent one take around 250 ms, because it does not have to be loaded from swap to ram again.    
+Example:    
+```
+> q 8 564607399 45080246
+Running query 8 with parametrs start_road_id='564607399', end_road_id='45080246'
+Running query: CREATE INDEX ON :Road(id)
+None
+Data saved to /data/query8.json
+Query 8 run in 84.19 seconds.
+> q 8 564607399 45080246
+Running query 8 with parametrs start_road_id='564607399', end_road_id='45080246'
+Running query: CREATE INDEX ON :Road(id)
+None
+Data saved to /data/query8.json
+Query 8 run in 17.74 seconds.
+```
+
+### Query 9
+At first we thought that this task meant oneway roads that have the same start and end nodes. We used the follwing query for that  
+```CYPHER
+MATCH (road:Road {oneway:"yes"})
+WHERE road.start_node_id = road.end_node_id
+MATCH (road)<-[:BELONGS_TO]-(roadNode:RoadNode{id: road.start_node_id})
+CALL {
+  WITH roadNode as n, inDegree(road) as max_depth
+  MATCH path = (n)-[relationships:CONNECTED_TO * max_depth .. max_depth]->(n)
+  RETURN path
+  LIMIT 1
+}
+WITH nodes(path) as cycle, road
+WHERE size(cycle) <= 20
+RETURN extract(n IN cycle | n.id) as node_ids, road.id as road_id, road.name as road_name
+```
+Example roundabout  
+![alt text](imgs/example_quasi_roundabout_bad.png)
+
+But the real quasi roundabouts were diffcult to calculate  
+We tried multiple functions provided by memgraph:  
+- nxalg.all_simple_paths
+- nxalg.simple_cycles
+- nxalg.find_cycles
+- manually find cycles
+But they were no good.  
+
+Soltuion was to use networkx in python on graph extracted from memgraph with a query.  
+
+Example roundabouts  
+![alt text](imgs/example_quasi_roundabout_1.png)  
+![alt text](imgs/example_quasi_roundabout_2.png)  
+
+To view these roundabouts, use
+```CYPHER
+WITH [
+            1087085920,
+            1087085925,
+            1087085921,
+            1087085928,
+            1087085926
+    ] as ids
+MATCH (n:Road)
+WHERE n.id IN ids
+WITH COLLECT(n) as nodes
+CALL graph_util.connect_nodes(nodes)
+YIELD connections
+UNWIND connections as connection
+WITH connection, nodes
+WHERE connection.part = "end"
+WITH COLLECT(connection) as c, nodes
+RETURN nodes, c
+```
+
+### Query 10
+
+Example roads and trees within 15 meters  
+![alt text](imgs/road_trees_15.png)  
+
+### Running times
+Query 1 run in 1.38 seconds.  
+Query 2 run in 1.03 seconds.  
+Query 3 run in 0.98 seconds.  
+Query 4 run in 88.76 seconds.  
+Query 5 run in 1.88 seconds.  
+Query 6 run in 151.45 seconds.  
+Query 7 run in 86.42 seconds.  
+Query 8 run in 5.19 seconds.  
+Query 9 run in 165.83 seconds.  
+Query 10 run in 6.59 seconds.  
+Total time taken: 509.51 seconds.  
+
+# Final statistics  
+vertex_count 35,992,818  
+edge_count 134,549,916	   
+average_degree 7.476   
+
+Data import report:  
+Roads data imported in 539.32 seconds.  
+Buildings data imported in 693.21 seconds.  
+Cities data imported in 18.64 seconds.  
+Communes data imported in 7.90 seconds.  
+Countries data imported in 0.77 seconds.  
+Powiats data imported in 3.76 seconds.  
+Railways data imported in 7.90 seconds.  
+Trees data imported in 14.39 seconds.  
+Voivodships data imported in 1.34 seconds.  
+Total time taken: 1287.24 seconds.  
+
+Relationship creation report:  
+Relationship 1 created in 76.08 seconds.  
+Relationship 2 created in 9.92 seconds.  
+Relationship 3 created in 8.82 seconds.  
+Relationship 4 created in 3.97 seconds.  
+Relationship 5 created in 46.87 seconds.  
+Relationship 6 created in 1513.88 seconds. (only Powiat Wielicki bounding box (includes half of Cracow) 23 M edges)  
+Relationship 7 created in 27.98 seconds.  
+Relationship 8 created in 54.51 seconds.  
+Relationship 9 created in 148.55 seconds.  
+Relationship 10 created in 167.63 seconds.  
+Total time taken: 2058.22 seconds.  
+
+
+First run   
+Query running report:  
+Query 1 run in 2.06 seconds.  
+Query 2 run in 1.38 seconds.  
+Query 3 run in 1.03 seconds.  
+Query 4 run in 102.21 seconds.  
+Query 5 run in 1.47 seconds.  
+Query 6 run in 161.85 seconds.  
+Query 7 run in 90.03 seconds.  
+Query 8 run in 5.16 seconds.  
+Query 9 run in 163.84 seconds.  
+Query 10 run in 5.62 seconds.  
+Total time taken: 534.65 seconds.  
+
+Second run  
+Query running report:  
+Query 1 run in 0.88 seconds.  
+Query 2 run in 0.78 seconds.  
+Query 3 run in 0.72 seconds.  
+Query 4 run in 60.12 seconds.  
+Query 5 run in 0.55 seconds.  
+Query 6 run in 150.70 seconds.  
+Query 7 run in 33.43 seconds.  
+Query 8 run in 0.99 seconds.  
+Query 9 run in 153.68 seconds.  
+Query 10 run in 3.29 seconds.  
+Total time taken: 405.17 seconds.  
+
+# How to run everything
+We recommend having at least 50 GBs of RAM + Swap memory and adding this line into file /etc/sysctl.conf
+```
+vm.max_map_count = 262144  
+```
+
+Copy every csv needed to directory "data", located in the same directory as this repository.  
+Open 2 terminals.  
+In the first one run:  
+```bash
+docker-compose up --build
+```
+In the second one run:  
+```bash
+docker compose run --rm manager
+```
+In the second terminal run:
+```
+import auto all
+```  
+```
+cr all 
+```  
+```
+q all
+```  
+It's done!  Query results should appear in the "data" directory.  
+For more details run:  
+```
+help
+```  
 # Guide on running visualization
 In one terminal run the docker compose to set up the environment:
 ```
@@ -548,6 +785,7 @@ Milestone 1: Choice of technologies, model & definitions - 6 hours
 Milestone 2: Data model & environment design - 6 hours  
 Milestone 3: Data import - 30 hours  
 Milestone 4: Relationship detection - 85 hours
+Milestone 5: Query implementation - 30 hours
 
 # Resources
 1. https://memgraph.com/docs/data-migration/best-practices  
