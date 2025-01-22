@@ -435,15 +435,25 @@ Under this optimal scenario, scaling to 17 million trees would result in:
 
 # Milestone 5: Query implementation
 
+## Query details and visualisations 
 
-## Chosen query details and visualisations 
-### Query 4
+### Query 1 - Number of cities within each commune
+
+### Query 2 - Adjacent powiats
+
+### Query 3 - Adjacent voivodships
+
+### Query 4 - Clusters of buildings; parameters: max distance, building type, min count
+
 For the purpose of this query neighbourhoods were calculated for every building in the bounding box of powiat wielicki.    
+
 There were 140 thousands of such buldings. This resulted in over 25 milion relationships.  
 
 Following visualsation is a part of a result of running a query 4 for buildings of type "house", max distance equal to 60m, minimal cluster size of 5.  
 There were 243 such clusters, amounting to 6743 nodes. It took 3.5 seconds to compute this, from which selecting buildings took 40% of the time and computing the clusters antoher 40%.  
+
 ![alt text](imgs/example_house_clusters_60.png)
+
 To visualize this query, run in the memgraph-lab the following query:
 ```CYPHER
 MATCH p=(b1:Building {building:"house"})-[e:CLOSE_TO]-(b2:Building {building:"house"})
@@ -460,7 +470,9 @@ YIELD connections
 RETURN c, connections
 ```
 
-### Query 6
+### Query 5 - Road/railway crossings; parameters: min angle, max angle
+
+### Query 6 - Roads which run parallel to railways2; parameters: to be agreed
 We prepared 2 variants, strict or lazy check.
 Strict check requires that all road segments are within given max_distance, and all of their segments are parallel (angles differ by maximum of max_angle) to the closest railway segment, and any segment cannot cross the railway.  
 Lazy check requires that at least one road segment is within given max_distance and is parallel (angles differ by maximum of max_angle) to the closest railway segment. Road can cross the railway.  
@@ -502,12 +514,12 @@ YIELD connections
 RETURN nodes, connections
 ```
 
-### Query 7
+### Query 7 - Clusters of trees; parameters: max distance, min count; returned as concave hulls
 
 Example of trees clusters with max distance of 3 and minimum cluster size of 10  
 ![alt text](imgs/example_tree_clusters.png)  
 
-### Query 8
+### Query 8 - Shortest path between two indicated roads; parameters: start and end road ids
 Path from Czarnowiejska to Józefa Conrada.   
 It took 0.3 s to calculate.   
 ![alt text](imgs/czarnowiejska_conrada.png)  
@@ -515,7 +527,7 @@ It took 0.3 s to calculate.
 Path from Czarnowiejska to Wawelska in Warsaw.  
 It took 7 minutes to calculate  
 ![alt text](imgs/czarnowiejska_wawelska.png)  
-Having to use swap lowers performance greatly. First run of "Path from Czarnowiejska to Józefa Conrada" take 3.5 seconds, but every subsequent one take around 250 ms, because it does not have to be loaded from swap to ram again.    
+Having to use swap lowers performance greatly. First run of "Path from Czarnowiejska to Józefa Conrada" takes 3.5 seconds, but every subsequent one takes around 250 ms, because it does not have to be loaded from swap to ram again.    
 Example:    
 ```
 > q 8 564607399 45080246
@@ -532,7 +544,8 @@ Data saved to /data/query8.json
 Query 8 run in 17.74 seconds.
 ```
 
-### Query 9
+### Query 9 - Quasi-roundabouts: find cycles consisting of one-way streets connected end-to-end;parameters: max length
+
 At first we thought that this task meant oneway roads that have the same start and end nodes. We used the follwing query for that  
 ```CYPHER
 MATCH (road:Road {oneway:"yes"})
@@ -586,7 +599,7 @@ WITH COLLECT(connection) as c, nodes
 RETURN nodes, c
 ```
 
-### Query 10
+### Query 10 - Roads with trees near them; parameters: min count, max distance
 
 Example roads and trees within 15 meters  
 ![alt text](imgs/road_trees_15.png)  
