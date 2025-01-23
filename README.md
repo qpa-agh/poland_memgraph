@@ -439,10 +439,104 @@ Under this optimal scenario, scaling to 17 million trees would result in:
 
 ### Query 1 - Number of cities within each commune
 
-### Query 2 - Adjacent powiats
+```json
+   {
+        "id": 1748161,
+        "name": "gmina Przemyśl",
+        "number_of_cities_within": 16
+    },
+    {
+        "id": 1746431,
+        "name": "gmina Oleszyce",
+        "number_of_cities_within": 10
+    },
+    {
+        "id": 1671683,
+        "name": "gmina Warta Bolesławiecka",
+        "number_of_cities_within": 10
+    },
+    ...
+```
 
+### Query 2 - Adjacent powiats
+```json
+   {
+        "id": 1552758,
+        "name": "powiat sztumski",
+        "adjacent_powiats": [
+            {
+                "id": 1551638,
+                "name": "powiat kwidzyński"
+            },
+            {
+                "id": 2675470,
+                "name": "powiat ostródzki"
+            },
+            {
+                "id": 2675417,
+                "name": "powiat iławski"
+            },
+            {
+                "id": 2675409,
+                "name": "powiat elbląski"
+            },
+            {
+                "id": 1551609,
+                "name": "powiat tczewski"
+            },
+            {
+                "id": 1552789,
+                "name": "powiat malborski"
+            }
+        ]
+    },
+    ...
+```
 ### Query 3 - Adjacent voivodships
 
+```json
+   {
+        "id": 223407,
+        "name": "województwo kujawsko-pomorskie",
+        "adjacent_voivodships": [
+            {
+                "id": 130971,
+                "name": "województwo wielkopolskie"
+            },
+            {
+                "id": 130975,
+                "name": "województwo pomorskie"
+            },
+            {
+                "id": 223408,
+                "name": "województwo warmińsko-mazurskie"
+            },
+            {
+                "id": 224458,
+                "name": "województwo łódzkie"
+            },
+            {
+                "id": 130935,
+                "name": "województwo mazowieckie"
+            }
+        ]
+    },
+    {
+        "id": 435513,
+        "name": "Severovýchod",
+        "adjacent_voivodships": [
+            {
+                "id": 224457,
+                "name": "województwo dolnośląskie"
+            },
+            {
+                "id": 435508,
+                "name": "Střední Morava"
+            }
+        ]
+    },
+```
+   
 ### Query 4 - Clusters of buildings; parameters: max distance, building type, min count
 
 For the purpose of this query neighbourhoods were calculated for every building in the bounding box of powiat wielicki.    
@@ -471,6 +565,39 @@ RETURN c, connections
 ```
 
 ### Query 5 - Road/railway crossings; parameters: min angle, max angle
+
+```json
+   {
+        "railway_id": 1316097848,
+        "road_id": 705725010,
+        "angle": 90.69921526002727
+    },
+    {
+        "railway_id": 1314371126,
+        "road_id": 1177650934,
+        "angle": 93.78910026570347
+    },
+    {
+        "railway_id": 1315651090,
+        "road_id": 587750741,
+        "angle": 92.7268952004947
+    },
+    {
+        "railway_id": 1315651090,
+        "road_id": 232223317,
+        "angle": 89.1838251618756
+    },
+    {
+        "railway_id": 1315651090,
+        "road_id": 922102568,
+        "angle": 97.06947863709011
+    },
+    {
+        "railway_id": 1315651090,
+        "road_id": 1229926607,
+        "angle": 96.81010856956553
+    },
+```
 
 ### Query 6 - Roads which run parallel to railways2; parameters: to be agreed
 We prepared 2 variants, strict or lazy check.
@@ -661,6 +788,8 @@ Query 8 run in 5.16 seconds.
 Query 9 run in 163.84 seconds.  
 Query 10 run in 5.62 seconds.  
 Total time taken: 534.65 seconds.  
+
+It took approximately 65 minutes from start to obtaining all query results.  
 
 Second run  
 Query running report:  
