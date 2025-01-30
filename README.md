@@ -926,8 +926,19 @@ Hard drive: Lexar SSD NM790 2TB
 Milestone 1: Choice of technologies, model & definitions - 6 hours  
 Milestone 2: Data model & environment design - 6 hours  
 Milestone 3: Data import - 30 hours  
-Milestone 4: Relationship detection - 85 hours
-Milestone 5: Query implementation - 30 hours
+Milestone 4: Relationship detection - 85 hours  
+Milestone 5: Query implementation - 30 hours  
+
+# Work division
+- Milestone 1 - Paulina Gacek, Jakub Hulek
+- Milestone 2:
+    - Basic docker configuration - Jakub Hulek
+    - Data exploration and some implementation - Paulina Gacek, Jakub Hulek
+- Milestone 3: 
+    - Data import - Jakub Hulek
+    - CLI tool - Paulina Gacek
+- Milestone 4 - Paulina Gacek, Jakub Hulek
+- Milestone 5 - Paulina Gacek, Jakub Hulek
 
 # Resources
 1. https://memgraph.com/docs/data-migration/best-practices  
