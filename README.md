@@ -1,6 +1,10 @@
 # Advanced Database Systems
 Paulina Gacek, Jakub Hulek
 
+This project was done as a part of Advanced Database Systems course.  
+It focues on modelling part of OpenStreetMap data of Poland into a Memgraph graph database.  
+Main task was to create an import pipeline and create specified relationships and a tool CLI to query it.  
+
 # Milestone 1: Choice of technologies, model & definitions (and partially Milestone 2)
 ## Main Technology
 Memgraph [link](https://memgraph.com/)
@@ -41,7 +45,6 @@ vm.max_map_count = 262144
 Upon startup, the **Manager** container will import data from CSV files present in the project's directory. This process will be conducted using Python with Neo4j.  
 The **Manager** will implement and provide a CLI tool for querying the database. If Memgraph is unable to fully process a query, we will use Geopandas to patch any gaps.  
 
-![CSV import illustration](imgs/csv_import_illustration.png)
  
 ### Parallelism Detection
 Two roads are considered parallel if and only if there exists one segment from each road that is parallel to one another.  
@@ -394,7 +397,7 @@ Possible solutions:
 ### Performance Evaluation and Scalability Analysis
 #### Creating buildings neighbourhood problem
 We conducted a performance evaluation of relationship creation. Processing approximately 10 000 building nodes took 3 minutes and resulted in over 3 milion relationships. 
-For example, the top red building in the below picture has over 300 relationships and this is a sh*t hole in the Podkarpackie voivodship.
+For example, the top red building in the below picture has over 300 relationships and this is a small village in the Podkarpackie voivodship.
 
 ![alt text](imgs/building_connection.png)  
 
@@ -922,22 +925,9 @@ Cpu:	Intel(R) Core(TM) i5-14600KF
 Memory:  32.0 GB 6800 MT/s  
 Hard drive: Lexar SSD NM790 2TB  
   
-# Time it took for each milestone  
-Milestone 1: Choice of technologies, model & definitions - 6 hours  
-Milestone 2: Data model & environment design - 6 hours  
-Milestone 3: Data import - 30 hours  
-Milestone 4: Relationship detection - 85 hours  
-Milestone 5: Query implementation - 30 hours  
 
-# Work division
-- Milestone 1 - Paulina Gacek, Jakub Hulek
-- Milestone 2:
-    - Basic docker configuration - Jakub Hulek
-    - Data exploration and some implementation - Paulina Gacek, Jakub Hulek
-- Milestone 3: 
-    - Data import - Jakub Hulek
-    - CLI tool - Paulina Gacek
-- Milestone 4 - Paulina Gacek, Jakub Hulek
+
+
 - Milestone 5 - Paulina Gacek, Jakub Hulek
 
 # Resources
