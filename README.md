@@ -5,6 +5,38 @@ This project was done as a part of Advanced Database Systems course.
 It focues on modelling part of OpenStreetMap data of Poland into a Memgraph graph database.  
 Main task was to create an import pipeline and create specified relationships and a tool CLI to query it.  
 
+# How to run everything
+We recommend having at least 50 GBs of RAM + Swap memory and adding this line into file /etc/sysctl.conf
+```
+vm.max_map_count = 262144  
+```
+
+Copy every csv needed to directory "data", located in the same directory as this repository.  
+Open 2 terminals.  
+In the first one run:  
+```bash
+docker-compose up --build
+```
+In the second one run:  
+```bash
+docker compose run --rm manager
+```
+In the second terminal run:
+```
+import auto all
+```  
+```
+cr all 
+```  
+```
+q all
+```  
+It's done!  Query results should appear in the "data" directory.  
+For more details run:  
+```
+help
+```  
+
 # Milestone 1: Choice of technologies, model & definitions (and partially Milestone 2)
 ## Main Technology
 Memgraph [link](https://memgraph.com/)
